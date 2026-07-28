@@ -137,7 +137,7 @@ const Meetings = {
       <p class="muted" style="margin-top:0">在飞书妙记中打开纪要，点右上角「<b>⋯ → 复制为 Markdown</b>」，粘贴到下方即可自动识别「参会人、要点、行动项」生成纪要。也可上传 .txt / .md / .docx 文件。</p>
       <div class="field" style="margin:0"><label>会议主题（可选，留空自动取首行）</label><input id="im_title" placeholder="如：跨境电商系统二期需求评审"></div>
       <div class="field"><label>转写文本（或上传文件）</label><textarea id="im_text" style="min-height:160px" placeholder="在飞书妙记里「复制为 Markdown」后粘贴到这里"></textarea></div>
-      <div class="field" style="margin:0"><label>上传文件（.txt / .md / .docx）</label><input type="file" id="im_file" accept=".txt,.md,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></div>
+      <div class="field" style="margin:0"><label>上传文件（.txt / .md / .docx）</label><input type="file" id="im_file" accept=".docx,.doc,.txt,.md"></div>
       <div id="im_preview" style="margin-top:10px"></div>
     `, () => {
       const txt = document.getElementById('im_text').value;
@@ -259,6 +259,9 @@ const Meetings = {
   },
   /* 纯前端读取 .docx：返回 {text, images} 其中 images 为 [{name, dataUrl}] */
   async readDocx(file) {
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('当前浏览器不支持解析 .docx（需 Chrome 110+ / Safari 16.4+），请改用「复制为 Markdown → 粘贴文本」导入');
+    }
     const bytes = new Uint8Array(await file.arrayBuffer());
     return await this._extractDocx(bytes);
   },
