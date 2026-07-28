@@ -274,6 +274,8 @@ table.tbl tr:hover td { background: var(--panel-2); }
 .ev .ev-title { font-weight: 600; font-size: 13.5px; }
 .ev .ev-meta { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
 .ev .ev-actions { display: flex; gap: 6px; align-items: flex-start; }
+.ev-done .ev-title { text-decoration: line-through; color: var(--ink-faint); }
+.ev-done .ev-meta { color: var(--ink-faint); }
 .checkbox { width: 20px; height: 20px; border: 2px solid var(--line); border-radius: 6px; cursor: pointer; flex-shrink:0; display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;}
 .checkbox.on { background: var(--green); border-color: var(--green); }
 

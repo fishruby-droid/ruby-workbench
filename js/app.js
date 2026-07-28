@@ -130,39 +130,35 @@ const App = {
 
       <div class="grid cols-2">
         <div class="card" style="grid-column:1/-1">
-          <div class="section-head"><h2>📅 本周工作备忘</h2><div class="spacer"></div>
+          <div class="section-head"><h2>📅 TO DO LIST（本周）</h2><div class="spacer"></div>
             <button class="btn sm" onclick="App.go('daily')">前往日历 →</button></div>
           ${(() => {
-            // 本周一起到周日
+            // 本周一到周日
             const now = new Date();
-            const day = now.getDay() || 7; // 周日=7
+            const day = now.getDay() || 7;
             const mon = new Date(now); mon.setDate(now.getDate() - day + 1);
-            const weekDays = [mon];
-            for (let i = 1; i < 7; i++) { const x = new Date(mon); x.setDate(mon.getDate() + i); weekDays.push(x); }
-            // 收集本周所有备忘
-            const weekItems = [];
-            const memoData = DB.get().memo;
-            weekDays.forEach((dd, idx) => {
+            const wd = [mon];
+            for (let i = 1; i < 7; i++) { const x = new Date(mon); x.setDate(mon.getDate() + i); wd.push(x); }
+            const wi = [];
+            const md = DB.get().memo;
+            const lb = ['周一','周二','周三','周四','周五','周六','周日'];
+            wd.forEach((dd, i) => {
               const dt = U.fmt(dd);
-              const label = ['周一','周二','周三','周四','周五','周六','周日'][idx];
-              const items = (memoData[dt] || []).slice(0, 6);
-              items.forEach(it => {
-                weekItems.push({ ...it, _dt: dt, _label: label + (dt === U.today() ? ' (今天)' : '') });
-              });
+              (md[dt] || []).slice(0, 6).forEach(it => { wi.push({ ...it, _dt: dt, _lb: lb[i] + (dt===U.today()?' (今天)':'') }); });
             });
-            const T = { memo:['📝','工作备忘','var(--blue-soft)'], done:['✅','工作进展','var(--green-soft)'], warn:['⏳','待跟进','var(--amber-soft)'], risk:['⚠️','风险事项','var(--red-soft)'] };
-            return weekItems.length ? weekItems.slice(0, 30).map(it => {
+            const T = { memo:['📝','待办事项','var(--blue-soft)'], done:['💪','工作进展','var(--green-soft)'], warn:['⏳','待跟进','var(--amber-soft)'], risk:['⚠️','风险事项','var(--red-soft)'] };
+            return wi.length ? wi.slice(0, 30).map(it => {
               const t = T[it.type] || T.memo;
-              return `<div class="ev">
-                <div class="ev-type" style="background:${t[2]}">${t[0]}</div>
+              const dn = it.done || false;
+              return `<div class="ev${dn?' ev-done':''}">
+                <div class="checkbox ${dn?'on':''}" onclick="Daily.toggle('${it._dt}','${it.id}')">${dn?'✓':''}</div>
                 <div class="ev-main">
-                  <div class="ev-title">${U.esc(it.title)} ${it.time?`<span class="pill gray" style="font-size:11px;padding:0 6px">${U.esc(it.time)}</span>`:''} <span class="pill purple" style="font-size:11px;padding:0 6px">${U.esc(it._label)}</span></div>
+                  <div class="ev-title">${U.esc(it.title)} ${it.time?`<span class="pill gray" style="font-size:11px;padding:0 6px">${U.esc(it.time)}</span>`:''} <span class="pill purple" style="font-size:11px;padding:0 6px">${U.esc(it._lb)}</span></div>
                   ${it.note ? `<div class="ev-meta">${U.esc(it.note)}</div>` : ''}
-                  <div class="ev-meta">${t[1]}${it.done?' · 已完成':''}</div>
+                  <div class="ev-meta">${t[1]}${dn?' · 已完成':''}</div>
                 </div>
               </div>`;
-            }).join('')
-              : `<div class="empty">本周暂无工作备忘，去日历添加吧</div>`;
+            }).join('') : `<div class="empty">本周暂无待办，去日历添加吧</div>`;
           })()}
         </div>
         <div class="card">

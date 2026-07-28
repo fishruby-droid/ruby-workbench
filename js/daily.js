@@ -63,10 +63,10 @@ const Daily = {
     const html = `
       <div class="card">
         <div class="section-head">
-          <h2>${U.fmtCN(dt)} 工作记录</h2>
-          <span class="pill ${total ? (done === total ? 'green' : 'amber') : 'gray'}">进展完成 ${done}/${total}</span>
+          <h2>${U.fmtCN(dt)} TODO 列表</h2>
+          <span class="pill ${total ? (done === total ? 'green' : 'amber') : 'gray'}">已完成 ${done}/${total}</span>
           <div class="spacer"></div>
-          <button class="btn primary sm" onclick="Daily.add('memo')">+ 工作备忘</button>
+          <button class="btn primary sm" onclick="Daily.add('memo')">+ 待办事项</button>
           <button class="btn primary sm" onclick="Daily.add('done')">+ 工作进展</button>
           <button class="btn primary sm" onclick="Daily.add('warn')">+ 待跟进</button>
           <button class="btn primary sm" onclick="Daily.add('risk')">+ 风险事项</button>
@@ -79,23 +79,23 @@ const Daily = {
   },
   evRow(dt, it) {
     const typeMap = {
-      memo: { ic: '📝', bg: 'var(--blue-soft)', title: '工作备忘' },
-      done: { ic: '✅', bg: 'var(--green-soft)', title: '工作进展' },
+      memo: { ic: '📝', bg: 'var(--blue-soft)', title: '待办事项' },
+      done: { ic: '💪', bg: 'var(--green-soft)', title: '工作进展' },
       warn: { ic: '⏳', bg: 'var(--amber-soft)', title: '待跟进' },
       risk: { ic: '⚠️', bg: 'var(--red-soft)', title: '风险事项' },
     };
     const t = typeMap[it.type] || typeMap.memo;
     const timeStr = it.time ? `<span class="pill gray" style="font-size:11px;padding:0 6px;margin-left:4px">${U.esc(it.time)}</span>` : '';
-    const checkbox = it.type === 'done'
-      ? `<div class="checkbox ${it.done ? 'on' : ''}" onclick="Daily.toggle('${dt}','${it.id}')">${it.done ? '✓' : ''}</div>` : '';
-    return `<div class="ev">
-      <div class="ev-type" style="background:${t.bg}">${t.ic}</div>
+    const done = it.done || false;
+    const rowClass = done ? ' ev-done' : '';
+    return `<div class="ev${rowClass}">
+      <div class="checkbox ${done?'on':''}" onclick="Daily.toggle('${dt}','${it.id}')">${done ? '✓' : ''}</div>
       <div class="ev-main">
         <div class="ev-title">${U.esc(it.title)}${timeStr}</div>
         ${it.note ? `<div class="ev-meta">${U.esc(it.note)}</div>` : ''}
-        <div class="ev-meta">${t.title}${it.done ? ' · 已完成' : ''}</div>
+        <div class="ev-meta">${t.title}${done ? ' · 已完成' : ''}</div>
       </div>
-      <div class="ev-actions">${checkbox}
+      <div class="ev-actions">
         <button class="btn ghost sm" onclick="Daily.edit('${dt}','${it.id}')">编辑</button>
         <button class="btn ghost sm danger" onclick="Daily.del('${dt}','${it.id}')">删</button>
       </div>
@@ -107,7 +107,7 @@ const Daily = {
     if (it) this.form(dt, it, id);
   },
   form(dt, it, id) {
-    const typeName = { memo: '工作备忘', done: '工作进展', warn: '待跟进', risk: '风险事项' };
+    const typeName = { memo: '待办事项', done: '工作进展', warn: '待跟进', risk: '风险事项' };
     openModal(id ? '编辑记录' : '新增' + typeName[it.type], `
       <div class="row2">
         <div class="field"><label>类型</label>
@@ -118,7 +118,7 @@ const Daily = {
       </div>
       <div class="field"><label>标题</label><input id="f_title" value="${U.esc(it.title)}" placeholder="如：完成XX机构接口联调"></div>
       <div class="field"><label>说明 / 备注</label><textarea id="f_note" placeholder="补充细节、结果、负责人等">${U.esc(it.note)}</textarea></div>
-      ${it.type==='done'?`<div class="field"><label><input type="checkbox" id="f_done" ${it.done?'checked':''} style="width:auto;margin-right:6px">已确认完成</label></div>`:''}
+      <div class="field"><label><input type="checkbox" id="f_done" ${it.done?'checked':''} style="width:auto;margin-right:6px">已完成</label></div>
     `, () => {
       const title = document.getElementById('f_title').value.trim();
       if (!title) { toast('请填写标题'); return; }
@@ -126,7 +126,7 @@ const Daily = {
         type: document.getElementById('f_type').value,
         time: document.getElementById('f_time').value,
         title, note: document.getElementById('f_note').value.trim(),
-        done: it.type === 'done' ? document.getElementById('f_done').checked : false
+        done: document.getElementById('f_done').checked
       };
       if (id) DB.updMemo(dt, id, obj); else DB.addMemo(dt, Object.assign({ id: U.uid() }, obj));
       closeModal(); this.renderDay(dt); toast('已保存');
