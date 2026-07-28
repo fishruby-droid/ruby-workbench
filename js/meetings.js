@@ -1,7 +1,7 @@
-/* ============ 会议纪要模块（独立） ============ */
+/* ============ 会议纪要模块（独立）============ */
 const Meetings = {
-  filter: '',
-  /* 精简 Markdown 渲染：标题 / 列表 / 加粗 / 图片 / 换行（安全转义后） */
+  filter: '', _expanded: null, // 当前展开的纪要 id
+  /* 精简 Markdown 渲染 */
   md(text) {
     if (!text) return '';
     const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -11,19 +11,14 @@ const Meetings = {
     for (let raw of lines) {
       let line = raw.replace(/\s+$/, '');
       if (!line.trim()) { closeUl(); continue; }
-      // 图片单独成行（飞书妙记常见）
-      const imgM = line.match(/!\[([^\]]*)\]\(([^)]+)\)/) || line.match(/<img[^>]+src=["']([^"']+)["']/i);
+      const imgM = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
       if (imgM) {
         closeUl();
-        const url = imgM[2] || (imgM[1] || '');
-        const alt = imgM[1] || '';
-        html += `<div class="md-img"><img src="${esc(url)}" alt="${esc(alt)}" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid var(--line);margin:6px 0"></div>`;
+        html += `<div class="md-img"><img src="${esc(imgM[2])}" alt="${esc(imgM[1])}" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid var(--line);margin:6px 0" onerror="this.style.display='none'"></div>`;
         continue;
       }
-      // 标题
       const h = line.match(/^(#{1,3})\s+(.*)$/);
       if (h) { closeUl(); const lv = h[1].length; html += `<div class="md-h md-h${lv}">${esc(h[2])}</div>`; continue; }
-      // 列表
       const li = line.match(/^[-•*]\s+(.*)$/) || line.match(/^\d+[、.]\s+(.*)$/);
       if (li) { if (!inUl) { html += '<ul class="md-ul">'; inUl = true; } html += `<li>${esc(this._inline(li[1]))}</li>`; continue; }
       closeUl();
@@ -32,9 +27,8 @@ const Meetings = {
     closeUl();
     return html;
   },
-  _inline(s) {
-    return s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+?)`/g, '<code>$1</code>');
-  },
+  _inline(s) { return s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+?)`/g, '<code>$1</code>'); },
+
   render() {
     const list = DB.get().meetings;
     const kw = this.filter.trim();
@@ -58,39 +52,52 @@ const Meetings = {
         <div class="section-head">
           <h2>会议纪要记录区</h2>
           <div class="spacer"></div>
-          <div class="search"><input id="m_filter" value="${U.esc(kw)}" placeholder="搜索主题/参会人/要点" oninput="Meetings.setFilter(this.value)" style="width:200px"></div>
+          <div class="search"><input id="m_filter" value="${U.esc(kw)}" placeholder="搜索主题/参会人" oninput="Meetings.setFilter(this.value)" style="width:160px"></div>
           <button class="btn sm" onclick="Meetings.importFeishu()">⌨️ 从飞书妙记导入</button>
           <button class="btn sm" onclick="App.importModule('meetings')">⬆ 导入文件</button>
-          <button class="btn primary sm" onclick="Meetings.add()">+ 新增纪要</button>
+          <button class="btn primary sm" onclick="Meetings.add()">+ 新增</button>
         </div>
-        ${shown.length ? shown.slice().reverse().map(m => this.card(m)).join('')
+        ${shown.length ? '<div class="ml-list">' + shown.slice().reverse().map(m => this.row(m)).join('') + '</div>'
           : `<div class="empty">${kw ? '没有匹配的纪要' : '暂无会议纪要，点击右上角添加或从飞书妙记导入'}</div>`}
       </div>`;
   },
-  /* 单条纪要卡片（简洁） */
-  card(m) {
-    const imgs = (m.images && m.images.length) ? m.images : [];
+  /* 列表行（简洁） */
+  row(m) {
+    const ex = this._expanded === m.id;
     return `
-      <div class="mt-card">
-        <div class="mt-head">
-          <div class="mt-title">${U.esc(m.title)}</div>
-          <div class="mt-actions">
-            <button class="btn ghost sm" onclick="Meetings.edit('${m.id}')">编辑</button>
-            <button class="btn ghost sm danger" onclick="Meetings.del('${m.id}')">删</button>
+      <div class="ml-row" onclick="Meetings.toggle('${m.id}')">
+        <div class="ml-left">
+          <div class="ml-title">${U.esc(m.title)}</div>
+          <div class="ml-meta">
+            <span class="pill purple" style="font-size:11px;padding:1px 7px">${m.date || '—'}</span>
+            ${m.attend ? `<span class="ml-tag">👥 ${U.esc(m.attend)}</span>` : ''}
           </div>
         </div>
-        <div class="mt-meta">
-          <span class="pill purple">${U.esc(m.date || '—')}</span>
-          ${m.attend ? `<span class="mt-tag">👥 ${U.esc(m.attend)}</span>` : ''}
-          ${m.place ? `<span class="mt-tag">📍 ${U.esc(m.place)}</span>` : ''}
-          ${(m.images && m.images.length) ? `<span class="mt-tag">🖼️ ${m.images.length} 图</span>` : ''}
+        <div class="ml-arrow">${ex ? '▾' : '▸'}</div>
+      </div>
+      ${ex ? `<div class="ml-detail">${this.detail(m)}</div>` : ''}`;
+  },
+  toggle(id) {
+    this._expanded = this._expanded === id ? null : id;
+    this.render();
+  },
+  /* 详情内容（点击展开后显示） */
+  detail(m) {
+    const imgs = (m.images && m.images.length) ? m.images : [];
+    const imgsHtml = imgs.length ? '<div class="mt-imgs">' + imgs.map(u => `<img src="${U.esc(u)}" loading="lazy" style="max-width:160px;max-height:120px;border-radius:10px;border:1px solid var(--line);margin:4px;cursor:pointer" onerror="this.style.display='none'" onclick="window.open('${U.esc(u)}','_blank')">`).join('') + '</div>' : '';
+    return `
+      <div style="padding:4px 12px 12px">
+        ${m.place ? `<div class="ml-dtag">📍 ${U.esc(m.place)}</div>` : ''}
+        ${m.content ? `<div class="ml-dsection">会议内容</div><div class="ml-dbody">${this.md(m.content)}</div>` : ''}
+        ${imgsHtml}
+        ${m.action ? `<div class="ml-daction"><b>✅ 行动项</b>${this.md(m.action)}</div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn ghost sm" onclick="event.stopPropagation();Meetings.edit('${m.id}')">编辑</button>
+          <button class="btn ghost sm danger" onclick="event.stopPropagation();Meetings.del('${m.id}')">删除</button>
         </div>
-        ${m.content ? `<div class="mt-body">${this.md(m.content)}</div>` : ''}
-        ${imgs.length ? `<div class="mt-imgs">${imgs.map(u => `<img src="${U.esc(u)}" loading="lazy" style="max-width:160px;max-height:120px;border-radius:10px;border:1px solid var(--line);margin:4px;cursor:pointer" onclick="window.open('${U.esc(u)}','_blank')">`).join('')}</div>` : ''}
-        ${m.action ? `<div class="mt-action"><b>✅ 行动项</b>${this.md(m.action)}</div>` : ''}
       </div>`;
   },
-  setFilter(v) { this.filter = v; this.render(); },
+  setFilter(v) { this.filter = v; this._expanded = null; this.render(); },
   add() { this.form({}); },
   edit(id) { this.form(DB.get().meetings.find(m => m.id === id), id); },
   form(m, id) {
@@ -104,7 +111,7 @@ const Meetings = {
         <div class="field"><label>参会人</label><input id="m_attend" value="${U.esc(m.attend || '')}" placeholder="如：科技部、业务部"></div>
         <div class="field"><label>地点</label><input id="m_place" value="${U.esc(m.place || '')}" placeholder="会议室/线上"></div>
       </div>
-      <div class="field"><label>会议内容摘要</label><textarea id="m_content" placeholder="讨论要点（支持 Markdown：## 标题、- 列表、**加粗**）">${U.esc(m.content || '')}</textarea></div>
+      <div class="field"><label>会议内容摘要</label><textarea id="m_content" style="min-height:100px" placeholder="讨论要点（支持 Markdown）">${U.esc(m.content || '')}</textarea></div>
     `, () => {
       const title = document.getElementById('m_title').value.trim();
       if (!title) { toast('请填写主题'); return; }
@@ -120,25 +127,16 @@ const Meetings = {
       closeModal(); this.render(); toast('已保存');
     });
   },
-  del(id) { confirmDel('确认删除？', () => { DB.remove('meetings', id); this.render(); toast('已删除'); }); },
+  del(id) {
+    confirmDel('确认删除？', () => { DB.remove('meetings', id); if (this._expanded === id) this._expanded = null; this.render(); toast('已删除'); });
+  },
 
-  /* 从飞书妙记 / 其他会议转写文本导入 */
+  /* 从飞书妙记导入 */
   importFeishu() {
     openModal('从飞书妙记导入', `
-      <p class="muted" style="margin-top:0">在飞书妙记中打开纪要，点右上角「<b>⋯ → 复制为 Markdown</b>」（或「复制全文」），把内容粘贴到下方即可自动识别「参会人、要点、行动项」并生成纪要。多条纪要可用分隔线 <b>---</b> 隔开批量导入。也可直接上传 .txt / .md / .docx 文件。</p>
+      <p class="muted" style="margin-top:0">在飞书妙记中打开纪要，点右上角「<b>⋯ → 复制为 Markdown</b>」，粘贴到下方即可自动识别「参会人、要点、行动项」生成纪要。也可上传 .txt / .md / .docx 文件。</p>
       <div class="field" style="margin:0"><label>会议主题（可选，留空自动取首行）</label><input id="im_title" placeholder="如：跨境电商系统二期需求评审"></div>
-      <div class="field"><label>转写文本（或上传文件）</label><textarea id="im_text" style="min-height:160px" placeholder="在飞书妙记里「复制为 Markdown」后粘贴到这里：
-
-## 会议概况
-参会人：张三、李四
-会议地点：线上会议室
-
-## 会议要点
-讨论反洗钱监控新增场景
-![](https://example.com/whiteboard.png)
-
-## 待办事项
-科技部7月30日前出原型"></textarea></div>
+      <div class="field"><label>转写文本（或上传文件）</label><textarea id="im_text" style="min-height:160px" placeholder="在飞书妙记里「复制为 Markdown」后粘贴到这里"></textarea></div>
       <div class="field" style="margin:0"><label>上传文件（.txt / .md / .docx）</label><input type="file" id="im_file" accept=".txt,.md,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></div>
       <div id="im_preview" style="margin-top:10px"></div>
     `, () => {
@@ -149,9 +147,8 @@ const Meetings = {
       blocks.forEach(b => {
         const p = this.parseTranscript(b);
         const manualTitle = (document.getElementById('im_title').value || '').trim();
-        // 自动主题：去掉 markdown 标题符号后的首个实质内容行（跳过区块标题行）
-        const lines = (p.content || '').split('\n').map(x => x.replace(/^#+\s*/, '').trim()).filter(Boolean);
-        const autoTitle = lines.find(l => !/^(会议概况|会议要点|会议总结|待办事项|行动项|会议内容|会议记录|参会人员|会议主题|会议纪要|参会人|出席)[:：]?$/.test(l)) || '飞书妙记导入';
+        const lines = (p.content || '').split('\n').map(x => x.trim()).filter(Boolean);
+        const autoTitle = lines.find(l => !/^[#>]/.test(l) && !/^(会议[概况要点总结]|待办事项|行动项|会议[内容记录]|会议[主题纪要]|参会[人]?|出席)([：:])?$/.test(l)) || '飞书妙记导入';
         DB.add('meetings', Object.assign({ id: U.uid() }, {
           title: (manualTitle || autoTitle).slice(0, 50),
           date: p.date || U.today(),
@@ -161,37 +158,40 @@ const Meetings = {
       });
       closeModal(); this.render(); toast('已导入 ' + n + ' 条纪要');
     });
-    // 文件读取
     const fileInput = document.getElementById('im_file');
     fileInput.onchange = async (ev) => {
       const f = ev.target.files[0]; if (!f) return;
       try {
         if (/\.docx?$/i.test(f.name)) {
-          const text = await this.readDocx(f);
-          document.getElementById('im_text').value = text;
-          MeetyPreview();
+          document.getElementById('im_text').value = await this.readDocx(f);
         } else {
-          const r = new FileReader(); r.onload = e => { document.getElementById('im_text').value = e.target.result; MeetyPreview(); }; r.readAsText(f);
+          const r = new FileReader(); r.onload = e => { document.getElementById('im_text').value = e.target.result; }; r.readAsText(f);
         }
-      } catch (err) { toast('Word 文件解析失败：' + err.message); }
+      } catch (err) { toast('文件解析失败：' + err.message); }
     };
-    const MeetyPreview = () => {
+    document.getElementById('im_text').addEventListener('input', () => {
       const txt = document.getElementById('im_text').value;
       const el = document.getElementById('im_preview');
       if (!txt.trim()) { el.innerHTML = ''; return; }
       const blocks = this.splitTranscripts(txt);
-      el.innerHTML = '<div class="muted" style="font-size:12px;margin-bottom:6px">将导入 ' + blocks.length + ' 条纪要：</div>' + blocks.map(b => {
+      el.innerHTML = '<div class="muted" style="font-size:12px;margin-bottom:6px">将导入 ' + blocks.length + ' 条纪要</div>' + blocks.map(b => {
         const p = this.parseTranscript(b);
-        return '<div style="border:1px dashed var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:12px">'
-          + '<b>' + U.esc((p.content.split('\n')[0] || '未命名').slice(0, 40)) + '</b>'
-          + ' <span class="muted">｜参会：' + U.esc(p.attend.slice(0, 30)) + '</span>'
-          + (p.images && p.images.length ? ' <span class="pill blue" style="font-size:11px">🖼️' + p.images.length + '</span>' : '')
+        const lines = (p.content || '').split('\n').map(x => x.trim()).filter(Boolean);
+        const t = lines.find(l => !/^[#>]/.test(l) && !/^(会议[概况要点总结]|待办事项|行动项|会议[内容记录]|会议[主题纪要]|参会[人]?|出席)([：:])?$/.test(l)) || '未命名';
+        return '<div style="border:1px dashed var(--line);border-radius:10px;padding:6px 10px;margin-bottom:6px;font-size:12px">'
+          + '<b>' + U.esc(t.slice(0, 40)) + '</b>'
+          + ' <span class="muted">｜参会：' + U.esc(p.attend.slice(0, 24)) + '</span>'
           + (p.action ? ' <span class="pill green" style="font-size:11px">含' + p.action.split('\n').length + '项行动</span>' : '')
           + '</div>';
       }).join('');
-    };
-    document.getElementById('im_text').addEventListener('input', MeetyPreview);
+    });
   },
+  /* 多纪要拆分：以 ---\n# 或 ---\n## 为分隔（避免误拆正文中的 --- 分隔线） */
+  splitTranscripts(txt) {
+    const blocks = (txt || '').split(/\n\s*---\s*\n(?=#{1,3}\s)/).map(b => b.trim()).filter(Boolean);
+    return blocks.length ? blocks : [(txt || '').trim()];
+  },
+  /* 解析参会人/要点/行动项/日期/图片 */
   parseTranscript(txt) {
     const clean = (s) => s.replace(/^[-•*\d+[、.、]\s*]/, '').replace(/\*\*/g, '').trim();
     const lines = (txt || '').split(/\n+/).map(s => s.trim());
@@ -200,28 +200,36 @@ const Meetings = {
     for (const raw of lines) {
       const s = clean(raw);
       if (!s) continue;
-      // 图片（独立成行）
-      const imgM = raw.match(/!\[([^\]]*)\]\(([^)]+)\)/) || raw.match(/<img[^>]+src=["']([^"']+)["']/i);
-      if (imgM) { images.push(imgM[2] || imgM[1] || ''); continue; }
+      // 图片
+      const imgM = raw.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+      if (imgM) { images.push(imgM[2]); continue; }
+      // ## 标题
       const h = raw.match(/^#+\s*(.+)$/);
       if (h) {
         const t = h[1].replace(/\*\*/g, '').trim();
-        if (/(参会|出席|概况|人员|成员)/.test(t)) sec = 'participants';
-        else if (/(待办|行动|事项|跟进|todo|next)/i.test(t)) sec = 'action';
-        else if (/(要点|摘要|讨论|结论|纪要|总结|内容)/.test(t)) sec = 'summary';
-        else sec = '';
+        // 短标题（<15字）才判为区块；长标题为文档主题，不进区块切换
+        if (t.length < 15) {
+          if (/(参会|出席|概况|人员|成员)/.test(t)) sec = 'participants';
+          else if (/(待办|行动|事项|跟进|todo|next)/i.test(t)) sec = 'action';
+          else if (/(要点|摘要|讨论|结论|总结|内容|关键决策|金句|相关链接|智能章节|待确认|后续)/.test(t)) sec = 'summary';
+          else sec = '';
+          continue;
+        }
+        // 长标题 → 作为内容首行（文档标题）
+        if (content.length === 0 && !attend) content.push(t);
         continue;
       }
-      // 纯文本标题行（docx 导出无 # 前缀）：会议概况 / 会议要点 / 待办事项 等
-      const plain = s.match(/^(会议概况|会议要点|会议总结|待办事项|行动项|会议内容|会议记录|参会人员|会议主题|会议纪要)\s*$/);
+      // 纯文本标题
+      const plain = s.match(/^(会议概况|会议要点|会议总结|待办事项|行动项|待确认事项|后续工作计划|关键决策|金句时刻|相关链接|智能章节|总结|待办)\s*$/);
       if (plain) {
         const t = plain[1];
         if (/(参会|概况|人员|成员)/.test(t)) sec = 'participants';
-        else if (/(待办|行动|事项)/.test(t)) sec = 'action';
-        else if (/(要点|总结|内容|记录|纪要|主题)/.test(t)) sec = 'summary';
+        else if (/(待办|行动|事项|工作|后续|决策|金句|链接|章节)/.test(t)) sec = 'action';
+        else if (/(要点|总结)/.test(t)) sec = 'summary';
         else sec = '';
         continue;
       }
+      // 键值行
       const kv = s.match(/^(?:参会人|出席|参加|参会|与会|列席|地点|会议地点|位置|时间|日期|会议时间)[:：]\s*(.+)$/);
       if (kv) {
         const key = s.split(/[:：]/)[0].replace(/\*/g, '');
@@ -241,15 +249,10 @@ const Meetings = {
     return {
       attend: attend || '—', place: place || '—', date: date || '',
       content: content.length ? content.join('\n') : (txt ? txt.trim() : ''),
-      action: action.join('\n'), images: images
+      action: action.join('\n'), images: images.filter(u => !u.match(/internal-api-drive-stream/)) // 过滤飞书内部鉴权图
     };
   },
-  /* 从一段文本里拆分为多条纪要（以 --- 分隔），返回数组 */
-  splitTranscripts(txt) {
-    const blocks = (txt || '').split(/\n\s*---\s*\n/).map(b => b.trim()).filter(Boolean);
-    return blocks.length ? blocks : [(txt || '').trim()];
-  },
-  /* 纯前端读取 .docx：解压 zip 提取 word/document.xml 文本（无需外部库） */
+  /* 纯前端读取 .docx */
   async readDocx(file) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     return await this._extractDocxText(bytes);
