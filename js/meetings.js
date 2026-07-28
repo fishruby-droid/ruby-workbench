@@ -112,6 +112,8 @@ const Meetings = {
         <div class="field"><label>地点</label><input id="m_place" value="${U.esc(m.place || '')}" placeholder="会议室/线上"></div>
       </div>
       <div class="field"><label>会议内容摘要</label><textarea id="m_content" style="min-height:100px" placeholder="讨论要点（支持 Markdown）">${U.esc(m.content || '')}</textarea></div>
+      ${id ? `<div class="field"><label>图片链接（手动贴图用，每行一个）</label><textarea id="m_imgs" style="min-height:50px" placeholder="从飞书妙记图片上「右键→复制图片地址」后粘贴到这里">${U.esc((m.images||[]).join('\n'))}</textarea>
+        <div class="muted" style="font-size:12px;margin-top:2px">图片会显示在详情页，支持网络图片链接和 base64</div></div>` : ''}
     `, () => {
       const title = document.getElementById('m_title').value.trim();
       if (!title) { toast('请填写主题'); return; }
@@ -121,7 +123,9 @@ const Meetings = {
         place: document.getElementById('m_place').value.trim(),
         content: document.getElementById('m_content').value.trim(),
         action: (m && m.action) || '',
-        images: (m && m.images) || []
+        images: (id && document.getElementById('m_imgs')) 
+          ? document.getElementById('m_imgs').value.split('\n').map(s => s.trim()).filter(Boolean)
+          : ((m && m.images) || [])
       };
       if (id) DB.update('meetings', id, obj); else DB.add('meetings', Object.assign({ id: U.uid() }, obj));
       closeModal(); this.render(); toast('已保存');
