@@ -99,14 +99,28 @@ const Policy = {
     const items = DB.get().policy.repo;
     const src = ['全部', '本行制度', '监管制度'];
     const cur = this._rfilter || '全部';
-    const list = cur === '全部' ? items : items.filter(i => i.src === cur);
+    // 分类维度（按业务条线）
+    const cats = ['全部', ...new Set(items.map(i => i.cat || '其他'))];
+    const curCat = this._rcat || '全部';
+    const kw = (this._rkw || '').trim();
+    let list = cur === '全部' ? items : items.filter(i => i.src === cur);
+    if (curCat !== '全部') list = list.filter(i => (i.cat || '其他') === curCat);
+    if (kw) list = list.filter(i => (i.name + (i.no || '') + (i.org || '')).includes(kw));
     return `
       <div class="card">
         <div class="section-head"><h2>制度知识库</h2><div class="spacer"></div>
+          <button class="btn sm" onclick="Policy.loadOfficial()">⬇ 载入官方现行法规</button>
           <button class="btn sm" onclick="App.importModule('policy_repo')">⬆ 导入</button>
           <button class="btn primary sm" onclick="Policy.addRepo()">+ 录入制度</button></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
           ${src.map(s => `<div class="chip ${s===cur?'on':''}" onclick="Policy.setRFilter('${s}')">${s}</div>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+          <input class="field" style="flex:1;min-width:160px;padding:8px 12px;border:2px dashed var(--line);border-radius:14px" placeholder="🔍 搜索法规名称 / 文号 / 机构" oninput="Policy.setRKw(this.value)" value="${U.esc(kw)}">
+          <span class="muted" style="font-size:12px">共 ${list.length} 条</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          ${cats.map(c => `<div class="chip ${c===curCat?'on':''}" onclick="Policy.setRCat('${c}')">${c}</div>`).join('')}
         </div>
         ${list.length ? `<div class="table-wrap"><table class="tbl">
           <tr><th>制度名称</th><th>来源</th><th>分类</th><th>发文机构</th><th>文号/版本</th><th></th></tr>
@@ -122,7 +136,24 @@ const Policy = {
         </table></div>` : `<div class="empty">知识库暂无记录</div>`}
       </div>`;
   },
+  setRCat(c) { this._rcat = c; this.renderBody(); },
+  setRKw(v) { this._rkw = v; this.renderBody(); },
   setRFilter(s) { this._rfilter = s; this.renderBody(); },
+  /** 一键载入官方现行有效跨境法规（外汇局目录 + 人行跨境相关），去重追加，不覆盖已有 */
+  loadOfficial() {
+    const bundle = (typeof window.REGULATIONS_BUNDLE !== 'undefined') ? window.REGULATIONS_BUNDLE : [];
+    if (!bundle.length) { toast('法规数据包未加载'); return; }
+    const cur = DB.get().policy.repo || [];
+    const have = new Set(cur.map(r => r.id));
+    let added = 0;
+    bundle.forEach(r => {
+      if (have.has(r.id)) return;
+      DB.addPolicy('repo', Object.assign({}, r));
+      added++;
+    });
+    this.renderBody();
+    toast(added ? `已载入 ${added} 条官方现行法规` : '官方法规已全部在库，无需重复载入');
+  },
   addRepo() { this.repoForm({}); },
   editRepo(id) { this.repoForm(DB.get().policy.repo.find(r => r.id === id), id); },
   repoForm(r, id) {
