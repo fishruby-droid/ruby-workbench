@@ -137,7 +137,7 @@ const Meetings = {
       <p class="muted" style="margin-top:0">在飞书妙记中打开纪要，点右上角「<b>⋯ → 复制为 Markdown</b>」，粘贴到下方即可自动识别「参会人、要点、行动项」生成纪要。也可上传 .txt / .md / .docx 文件。</p>
       <div class="field" style="margin:0"><label>会议主题（可选，留空自动取首行）</label><input id="im_title" placeholder="如：跨境电商系统二期需求评审"></div>
       <div class="field"><label>转写文本（或上传文件）</label><textarea id="im_text" style="min-height:160px" placeholder="在飞书妙记里「复制为 Markdown」后粘贴到这里"></textarea></div>
-      <div class="field" style="margin:0"><label>上传文件（.txt / .md / .docx）</label><input type="file" id="im_file" accept=".docx,.doc,.txt,.md"></div>
+      <div class="field" style="margin:0"><label>上传文件</label><input type="file" id="im_file"></div>
       <div id="im_preview" style="margin-top:10px"></div>
     `, () => {
       const txt = document.getElementById('im_text').value;
@@ -163,16 +163,26 @@ const Meetings = {
     const fileInput = document.getElementById('im_file');
     fileInput.onchange = async (ev) => {
       const f = ev.target.files[0]; if (!f) return;
+      const fileName = (f.name || '').toLowerCase();
+      // 非 docx 文件走普通文本读取
+      if (!fileName.endsWith('.docx') && !fileName.endsWith('.doc')) {
+        this._docxImages = [];
+        const r = new FileReader(); r.onload = e => { document.getElementById('im_text').value = e.target.result; }; r.readAsText(f);
+        return;
+      }
+      // .docx 文件：检测浏览器能力
+      if (typeof DecompressionStream === 'undefined') {
+        toast('⚠️ 当前浏览器不支持解析 .docx 文件（请升级浏览器，或在飞书妙记中点「⋯ → 复制为 Markdown」后粘贴到上方文本框导入）');
+        return;
+      }
       try {
-        if (/\.docx?$/i.test(f.name)) {
-          const result = await this.readDocx(f);
-          document.getElementById('im_text').value = result.text;
-          this._docxImages = result.images.map(img => img.dataUrl);
-        } else {
-          this._docxImages = [];
-          const r = new FileReader(); r.onload = e => { document.getElementById('im_text').value = e.target.result; }; r.readAsText(f);
-        }
-      } catch (err) { toast('文件解析失败：' + err.message); }
+        const result = await this.readDocx(f);
+        document.getElementById('im_text').value = result.text;
+        this._docxImages = result.images.map(img => img.dataUrl);
+      } catch (err) {
+        console.error('docx parse error:', err);
+        toast('文件解析失败：' + err.message);
+      }
     };
     document.getElementById('im_text').addEventListener('input', () => {
       const txt = document.getElementById('im_text').value;
