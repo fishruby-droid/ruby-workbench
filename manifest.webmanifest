@@ -1,0 +1,17 @@
+{
+  "name": "Ruby的工作台",
+  "short_name": "Ruby工作台",
+  "description": "Ruby 的跨境业务管理团队工作台：日常工作、电商系统、其他系统、制度建设、监管报送",
+  "lang": "zh-CN",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fdf6f9",
+  "theme_color": "#ec6a9c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

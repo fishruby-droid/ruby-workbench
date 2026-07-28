@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ec6a9c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ruby的工作台">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <title>Ruby的工作台</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- 手绘抖动滤镜 -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="sketch">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <filter id="sketch2">
+        <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" seed="3" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+  </svg>
+</head>
+<body>
+  <div class="app">
+    <!-- 桌面侧边栏 -->
+    <aside class="sidebar">
+      <div class="brand"><span class="logo">R</span> Ruby的工作台</div>
+      <nav id="nav"></nav>
+      <div class="foot">数据本地保存 · 离线可用<br>v1.0 · 产品经理专属</div>
+    </aside>
+
+    <!-- 主区 -->
+    <div class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">概览</h1>
+          <div class="sub" id="pageSub">Ruby 的日常工作台</div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn sm" onclick="App.confirmReset()" title="清空全部本地数据">↺ 重置</button>
+        <button class="btn sm" onclick="App.exportData()" title="导出全部数据为 JSON">⬇ 导出</button>
+        <button class="btn sm" onclick="App.importData()" title="从 JSON 文件导入">⬆ 导入</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none" onchange="App.handleImport(event)">
+        <div class="clock" id="clock"></div>
+      </header>
+      <main class="content" id="content"></main>
+    </div>
+  </div>
+
+  <!-- 移动端底部标签栏 -->
+  <nav class="mobile-nav" id="mobileNav"></nav>
+
+  <!-- 弹窗 -->
+  <div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="m-head"><h3 id="modalTitle">标题</h3><span class="x" onclick="closeModal()">×</span></div>
+      <div class="m-body" id="modalBody"></div>
+      <div class="m-foot">
+        <button class="btn" id="modalCancel" onclick="closeModal()">取消</button>
+        <button class="btn primary" id="modalSave">保存</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/store.js"></script>
+  <script src="js/daily.js"></script>
+  <script src="js/ecom.js"></script>
+  <script src="js/policy.js"></script>
+  <script src="js/other.js"></script>
+  <script src="js/meetings.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/datamgr.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
