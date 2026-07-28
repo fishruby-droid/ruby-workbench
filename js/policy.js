@@ -204,15 +204,21 @@ const Policy = {
     if (!bundle.length) { toast('法规数据包未加载'); return; }
     const cur = DB.get().policy.repo || [];
     const have = new Set(cur.map(r => r.id));
-    let added = 0;
+    let added = 0, updated = 0;
     bundle.forEach(r => {
-      if (have.has(r.id)) return;
-      DB.addPolicy('repo', Object.assign({}, r));
-      added++;
+      if (have.has(r.id)) {
+        // 已存在：更新（用于链接修复等版本迭代）
+        DB.updPolicy('repo', r.id, r);
+        updated++;
+      } else {
+        DB.addPolicy('repo', Object.assign({}, r));
+        added++;
+      }
     });
     if (this.tab === 'repo') this.renderBody();
     else if (typeof App !== 'undefined' && App.cur === 'policy') this.render();
-    toast(added ? `已载入 ${added} 条官方现行法规` : '官方法规已全部在库，无需重复载入');
+    if (updated) toast(`已更新 ${updated} 条（最新链接），新增 ${added} 条`);
+    else toast(added ? `已载入 ${added} 条官方现行法规` : '官方法规已全部在库');
   },
   addRepo() { this.repoForm({}); },
   editRepo(id) { this.repoForm(DB.get().policy.repo.find(r => r.id === id), id); },
