@@ -129,6 +129,14 @@ const Meetings = {
   importFeishu() {
     openModal('从飞书妙记导入', `
       <p class="muted" style="margin-top:0">把飞书妙记导出的文本粘贴到下方（支持智能纪要 Markdown 或转写全文，含 <code>![](图片)</code> 也会保留），系统自动识别「参会人、要点、行动项」并生成纪要。多条纪要可用分隔线 <b>---</b> 隔开批量导入。也可上传 .txt / .md / .docx 文件。</p>
+      <div class="field" style="margin:0">
+        <label>飞书妙记分享链接（可选）</label>
+        <div style="display:flex;gap:8px">
+          <input id="im_link" class="field" style="flex:1;padding:8px 12px;border:2px dashed var(--line);border-radius:14px" placeholder="粘贴飞书妙记链接，如 https://…feishu.cn/minutes/xxxx">
+          <button class="btn sm" id="im_fetch" type="button">抓取</button>
+        </div>
+        <div id="im_link_tip" class="muted" style="font-size:12px;margin-top:6px;display:none"></div>
+      </div>
       <div class="field"><label>转写文本（或上传文件）</label><textarea id="im_text" style="min-height:160px" placeholder="示例（飞书妙记智能纪要）：
 ## 会议概况
 参会人：张三、李四
@@ -158,6 +166,40 @@ const Meetings = {
       });
       closeModal(); this.render(); toast('已导入 ' + n + ' 条纪要');
     });
+    // 飞书妙记链接抓取（兼容公开分享；登录墙/CORS 时降级引导）
+    const linkInput = document.getElementById('im_link');
+    const fetchBtn = document.getElementById('im_fetch');
+    const tip = document.getElementById('im_link_tip');
+    const doFetch = async () => {
+      const url = (linkInput.value || '').trim();
+      if (!url) { toast('请先粘贴飞书妙记链接'); return; }
+      fetchBtn.disabled = true; fetchBtn.textContent = '抓取中…'; tip.style.display = 'none';
+      try {
+        const resp = await fetch(url, { mode: 'cors' });
+        const html = await resp.text();
+        const text = window.MeetingsExtractText ? window.MeetingsExtractText(html) : Meetings._htmlToText(html);
+        if (text && text.trim().length > 20) {
+          document.getElementById('im_text').value = text;
+          document.getElementById('im_text').dispatchEvent(new Event('input'));
+          toast('已从链接抓取内容，请确认后导入');
+        } else {
+          throw new Error('empty');
+        }
+      } catch (e) {
+        tip.style.display = 'block';
+        tip.innerHTML = '⚠️ 浏览器无法直接抓取飞书妙记链接（需登录授权，且跨域受限）。请改用飞书妙记内的 <b>「⋯ → 复制为 Markdown / 复制全文」</b>，把内容粘贴到上方文本框即可自动解析。';
+      } finally {
+        fetchBtn.disabled = false; fetchBtn.textContent = '抓取';
+      }
+    };
+    fetchBtn.onclick = doFetch;
+    // HTML 提取纯文本（用于公开分享页）
+    Meetings._htmlToText = (html) => {
+      let t = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
+      t = t.replace(/<br\s*\/?>(?=)/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<\/h[1-6]>/gi, '\n');
+      t = t.replace(/<[^>]+>/g, '');
+      return t.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\n{3,}/g, '\n\n').trim();
+    };
     const fileInput = document.getElementById('im_file');
     fileInput.onchange = async (ev) => {
       const f = ev.target.files[0]; if (!f) return;
