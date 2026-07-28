@@ -95,7 +95,6 @@ const Meetings = {
   edit(id) { this.form(DB.get().meetings.find(m => m.id === id), id); },
   form(m, id) {
     m = m || {};
-    const imgs = (m.images && m.images.length) ? m.images.join('\n') : '';
     openModal(id ? '编辑纪要' : '新增会议纪要', `
       <div class="row2">
         <div class="field"><label>会议主题</label><input id="m_title" value="${U.esc(m.title || '')}" placeholder="如：跨境电商系统二期需求评审"></div>
@@ -106,8 +105,6 @@ const Meetings = {
         <div class="field"><label>地点</label><input id="m_place" value="${U.esc(m.place || '')}" placeholder="会议室/线上"></div>
       </div>
       <div class="field"><label>会议内容摘要</label><textarea id="m_content" placeholder="讨论要点（支持 Markdown：## 标题、- 列表、**加粗**）">${U.esc(m.content || '')}</textarea></div>
-      <div class="field"><label>行动项 / 待办</label><textarea id="m_action" placeholder="决议与分工（每行一条）">${U.esc(m.action || '')}</textarea></div>
-      <div class="field"><label>图片链接（每行一个）</label><textarea id="m_imgs" placeholder="https://... 飞书妙记导出的图片地址">${U.esc(imgs)}</textarea></div>
     `, () => {
       const title = document.getElementById('m_title').value.trim();
       if (!title) { toast('请填写主题'); return; }
@@ -116,8 +113,8 @@ const Meetings = {
         attend: document.getElementById('m_attend').value.trim(),
         place: document.getElementById('m_place').value.trim(),
         content: document.getElementById('m_content').value.trim(),
-        action: document.getElementById('m_action').value.trim(),
-        images: document.getElementById('m_imgs').value.split('\n').map(s => s.trim()).filter(Boolean)
+        action: (m && m.action) || '',
+        images: (m && m.images) || []
       };
       if (id) DB.update('meetings', id, obj); else DB.add('meetings', Object.assign({ id: U.uid() }, obj));
       closeModal(); this.render(); toast('已保存');
