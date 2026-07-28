@@ -4,9 +4,11 @@ const Policy = {
   render() {
     document.getElementById('view-policy').innerHTML = `
       <div class="card" style="padding-bottom:8px">
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <div class="chip ${this.tab==='build'?'on':''}" onclick="Policy.switch('build')">制度建设进度</div>
           <div class="chip ${this.tab==='repo'?'on':''}" onclick="Policy.switch('repo')">制度知识库</div>
+          <div class="spacer"></div>
+          <a class="btn sm" style="text-decoration:none" href="https://www.huixiao2.com/chat-pc/" target="_blank" rel="noopener">🤖 汇小二（外汇局智能问答）</a>
         </div>
       </div>
       <div id="policy-body"></div>`;
