@@ -98,7 +98,7 @@ const Meetings = {
 参会人：王五
 ## 会议要点
 …"></textarea></div>
-      <div class="field" style="margin:0"><label>上传文件（.txt / .md）</label><input type="file" id="im_file" accept=".txt,.md,text/plain"></div>
+      <div class="field" style="margin:0"><label>上传文件（.txt / .md / .docx）</label><input type="file" id="im_file" accept=".txt,.md,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></div>
       <div id="im_preview" style="margin-top:10px"></div>
     `, () => {
       const txt = document.getElementById('im_text').value;
@@ -118,9 +118,17 @@ const Meetings = {
     });
     // 文件读取
     const fileInput = document.getElementById('im_file');
-    fileInput.onchange = (ev) => {
+    fileInput.onchange = async (ev) => {
       const f = ev.target.files[0]; if (!f) return;
-      const r = new FileReader(); r.onload = e => { document.getElementById('im_text').value = e.target.result; MeetyPreview(); }; r.readAsText(f);
+      try {
+        if (/\.docx?$/i.test(f.name)) {
+          const text = await this.readDocx(f);
+          document.getElementById('im_text').value = text;
+          MeetyPreview();
+        } else {
+          const r = new FileReader(); r.onload = e => { document.getElementById('im_text').value = e.target.result; MeetyPreview(); }; r.readAsText(f);
+        }
+      } catch (err) { toast('Word 文件解析失败：' + err.message); }
     };
     const MeetyPreview = () => {
       const txt = document.getElementById('im_text').value;
@@ -184,5 +192,67 @@ const Meetings = {
   splitTranscripts(txt) {
     const blocks = (txt || '').split(/\n\s*---\s*\n/).map(b => b.trim()).filter(Boolean);
     return blocks.length ? blocks : [(txt || '').trim()];
+  },
+  /* 纯前端读取 .docx：解压 zip 提取 word/document.xml 文本（无需外部库） */
+  async readDocx(file) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    return await this._extractDocxText(bytes);
+  },
+  async _extractDocxText(bytes) {
+    // 用 JSZip 思路：手动解析 ZIP 中央目录，找到 word/document.xml
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    // 找 "word/document.xml" 在文件名列表中的位置
+    const zip = this._parseZip(bytes);
+    const entry = zip.find(z => z.name === 'word/document.xml') || zip.find(z => z.name.endsWith('document.xml'));
+    if (!entry) throw new Error('未找到 document.xml');
+    let xmlBytes = entry.data;
+    if (entry.compressed) xmlBytes = await this._inflate(xmlBytes);
+    const xml = new TextDecoder('utf-8').decode(xmlBytes);
+    // 提取文本：<w:t>内容</w:t>，段落 <w:p> 换行
+    const paras = xml.split(/<w:p[ >]/).slice(1);
+    const out = [];
+    for (const p of paras) {
+      const texts = [...p.matchAll(/<w:t[^>]*>(.*?)<\/w:t>/g)].map(m => m[1]);
+      const line = texts.join('').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+      out.push(line);
+    }
+    return out.join('\n');
+  },
+  _parseZip(bytes) {
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    // 找 EOCD 签名 0x06054b50
+    let eocd = -1;
+    for (let i = bytes.length - 22; i >= 0; i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('不是有效的 ZIP');
+    const total = dv.getUint16(eocd + 10, true);
+    let cdOff = dv.getUint32(eocd + 16, true);
+    const entries = [];
+    for (let i = 0; i < total; i++) {
+      if (dv.getUint32(cdOff, true) !== 0x02014b50) break;
+      const clen = dv.getUint16(cdOff + 20, true); // compressed
+      const ulen = dv.getUint32(cdOff + 24, true); // uncompressed
+      const nlen = dv.getUint16(cdOff + 28, true);
+      const elen = dv.getUint16(cdOff + 30, true);
+      const clen2 = dv.getUint16(cdOff + 32, true);
+      const name = new TextDecoder().decode(bytes.subarray(cdOff + 46, cdOff + 46 + nlen));
+      const method = dv.getUint16(cdOff + 10, true);
+      const dataOff = dv.getUint32(cdOff + 42, true);
+      const comp = method === 8;
+      // 读取数据（local file header 后）：跳过 local header 30 + nlen + elen
+      const lh = dataOff;
+      const loff = lh + 30 + nlen + elen;
+      const data = bytes.subarray(loff, loff + clen);
+      entries.push({ name, compressed: comp, data: data.slice() });
+      cdOff += 46 + nlen + elen + clen2;
+    }
+    return entries;
+  },
+  async _inflate(compressed) {
+    const ds = new DecompressionStream('deflate-raw');
+    const stream = new Blob([compressed]).stream().pipeThrough(ds);
+    const ab = await new Response(stream).arrayBuffer();
+    return new Uint8Array(ab);
   },
 };
