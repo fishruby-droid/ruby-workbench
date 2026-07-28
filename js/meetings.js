@@ -134,9 +134,15 @@ const Meetings = {
   /* 从飞书妙记导入 */
   importFeishu() {
     openModal('从飞书妙记导入', `
-      <p class="muted" style="margin-top:0">在飞书妙记中打开纪要，点右上角「<b>⋯ → 复制为 Markdown</b>」，粘贴到下方即可自动识别「参会人、要点、行动项」生成纪要。也可上传 .txt / .md / .docx 文件。</p>
+      <p class="muted" style="margin-top:0">从飞书妙记导入纪要：</p>
+      <div style="background:var(--panel-2);border:1px dashed var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;line-height:1.7">
+        <b>📋 方式一：复制智能纪要</b><br>
+        打开妙记 → 左侧「智能纪要」标签页 → <b>全选复制</b>内容，粘贴到下方文本框即可自动识别「参会人、要点、行动项」。<br><br>
+        <b>📄 方式二：导出文字记录（.docx / .txt）</b><br>
+        打开妙记 → 右侧文字记录区域 → 点击搜索框旁的 <b>「⋯ → 导出文字记录」</b> → 选择格式导出，再点下方上传文件导入。
+      </div>
       <div class="field" style="margin:0"><label>会议主题（可选，留空自动取首行）</label><input id="im_title" placeholder="如：跨境电商系统二期需求评审"></div>
-      <div class="field"><label>转写文本（或上传文件）</label><textarea id="im_text" style="min-height:160px" placeholder="在飞书妙记里「复制为 Markdown」后粘贴到这里"></textarea></div>
+      <div class="field"><label>转写文本（或上传文件）</label><textarea id="im_text" style="min-height:160px" placeholder="从飞书妙记「智能纪要」全选复制后粘贴到这里"></textarea></div>
       <div class="field" style="margin:0"><label>上传文件</label><input type="file" id="im_file"></div>
       <div id="im_preview" style="margin-top:10px"></div>
     `, () => {
