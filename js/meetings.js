@@ -129,6 +129,7 @@ const Meetings = {
   importFeishu() {
     openModal('从飞书妙记导入', `
       <p class="muted" style="margin-top:0">在飞书妙记中打开纪要，点右上角「<b>⋯ → 复制为 Markdown</b>」（或「复制全文」），把内容粘贴到下方即可自动识别「参会人、要点、行动项」并生成纪要。多条纪要可用分隔线 <b>---</b> 隔开批量导入。也可直接上传 .txt / .md / .docx 文件。</p>
+      <div class="field" style="margin:0"><label>会议主题（可选，留空自动取首行）</label><input id="im_title" placeholder="如：跨境电商系统二期需求评审"></div>
       <div class="field"><label>转写文本（或上传文件）</label><textarea id="im_text" style="min-height:160px" placeholder="在飞书妙记里「复制为 Markdown」后粘贴到这里：
 
 ## 会议概况
@@ -150,8 +151,12 @@ const Meetings = {
       let n = 0;
       blocks.forEach(b => {
         const p = this.parseTranscript(b);
+        const manualTitle = (document.getElementById('im_title').value || '').trim();
+        // 自动主题：去掉 markdown 标题符号后的首个实质内容行（跳过区块标题行）
+        const lines = (p.content || '').split('\n').map(x => x.replace(/^#+\s*/, '').trim()).filter(Boolean);
+        const autoTitle = lines.find(l => !/^(会议概况|会议要点|会议总结|待办事项|行动项|会议内容|会议记录|参会人员|会议主题|会议纪要|参会人|出席)[:：]?$/.test(l)) || '飞书妙记导入';
         DB.add('meetings', Object.assign({ id: U.uid() }, {
-          title: (p.content.split('\n')[0] || '飞书妙记导入').slice(0, 40),
+          title: (manualTitle || autoTitle).slice(0, 50),
           date: p.date || U.today(),
           attend: p.attend, place: p.place, content: p.content, action: p.action, images: p.images || []
         }));
@@ -207,6 +212,16 @@ const Meetings = {
         if (/(参会|出席|概况|人员|成员)/.test(t)) sec = 'participants';
         else if (/(待办|行动|事项|跟进|todo|next)/i.test(t)) sec = 'action';
         else if (/(要点|摘要|讨论|结论|纪要|总结|内容)/.test(t)) sec = 'summary';
+        else sec = '';
+        continue;
+      }
+      // 纯文本标题行（docx 导出无 # 前缀）：会议概况 / 会议要点 / 待办事项 等
+      const plain = s.match(/^(会议概况|会议要点|会议总结|待办事项|行动项|会议内容|会议记录|参会人员|会议主题|会议纪要)\s*$/);
+      if (plain) {
+        const t = plain[1];
+        if (/(参会|概况|人员|成员)/.test(t)) sec = 'participants';
+        else if (/(待办|行动|事项)/.test(t)) sec = 'action';
+        else if (/(要点|总结|内容|记录|纪要|主题)/.test(t)) sec = 'summary';
         else sec = '';
         continue;
       }
