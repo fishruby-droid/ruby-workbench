@@ -14,7 +14,8 @@ const Meetings = {
       const imgM = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
       if (imgM) {
         closeUl();
-        html += `<div class="md-img"><img src="${esc(imgM[2])}" alt="${esc(imgM[1])}" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid var(--line);margin:6px 0" onerror="this.style.display='none'"></div>`;
+        html += `<div class="md-img"><img src="${esc(imgM[2])}" alt="${esc(imgM[1])}" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid var(--line);margin:6px 0" onerror="this.style.display='none'">`;
+        html += `<div class="muted" style="font-size:11px;margin:-4px 0 6px"><a href="${esc(imgM[2])}" target="_blank" rel="noopener" style="word-break:break-all">🖼️ 查看原图 ↗</a></div></div>`;
         continue;
       }
       const h = line.match(/^(#{1,3})\s+(.*)$/);
@@ -225,9 +226,9 @@ const Meetings = {
     for (const raw of lines) {
       const s = clean(raw);
       if (!s) continue;
-      // 图片
+      // 图片：提取到 images 中，同时保留原文行到 content（md()渲染 + onerror 兜底）
       const imgM = raw.match(/!\[([^\]]*)\]\(([^)]+)\)/);
-      if (imgM) { images.push(imgM[2]); continue; }
+      if (imgM) { images.push(imgM[2]); content.push(raw); continue; }
       // ## 标题
       const h = raw.match(/^#+\s*(.+)$/);
       if (h) {
