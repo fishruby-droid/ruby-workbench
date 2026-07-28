@@ -8,7 +8,9 @@ const Policy = {
           <div class="chip ${this.tab==='build'?'on':''}" onclick="Policy.switch('build')">制度建设进度</div>
           <div class="chip ${this.tab==='repo'?'on':''}" onclick="Policy.switch('repo')">制度知识库</div>
           <div class="spacer"></div>
-          <a class="btn sm" style="text-decoration:none" href="https://www.huixiao2.com/chat-pc/" target="_blank" rel="noopener">🤖 汇小二（外汇局智能问答）</a>
+          <a class="btn sm" style="text-decoration:none" href="https://www.huixiao2.com/chat-pc/" target="_blank" rel="noopener">🤖 汇小二</a>
+          <a class="btn sm" style="text-decoration:none" href="https://www.safe.gov.cn/" target="_blank" rel="noopener">🌐 国家外汇管理局</a>
+          <a class="btn sm" style="text-decoration:none" href="http://www.pbc.gov.cn/" target="_blank" rel="noopener">🏦 中国人民银行</a>
         </div>
       </div>
       <div id="policy-body"></div>`;
