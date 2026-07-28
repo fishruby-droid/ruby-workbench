@@ -85,12 +85,13 @@ const Daily = {
       risk: { ic: '⚠️', bg: 'var(--red-soft)', title: '风险事项' },
     };
     const t = typeMap[it.type] || typeMap.memo;
+    const timeStr = it.time ? `<span class="pill gray" style="font-size:11px;padding:0 6px;margin-left:4px">${U.esc(it.time)}</span>` : '';
     const checkbox = it.type === 'done'
       ? `<div class="checkbox ${it.done ? 'on' : ''}" onclick="Daily.toggle('${dt}','${it.id}')">${it.done ? '✓' : ''}</div>` : '';
     return `<div class="ev">
       <div class="ev-type" style="background:${t.bg}">${t.ic}</div>
       <div class="ev-main">
-        <div class="ev-title">${U.esc(it.title)}</div>
+        <div class="ev-title">${U.esc(it.title)}${timeStr}</div>
         ${it.note ? `<div class="ev-meta">${U.esc(it.note)}</div>` : ''}
         <div class="ev-meta">${t.title}${it.done ? ' · 已完成' : ''}</div>
       </div>
@@ -108,10 +109,13 @@ const Daily = {
   form(dt, it, id) {
     const typeName = { memo: '工作备忘', done: '工作进展', warn: '待跟进', risk: '风险事项' };
     openModal(id ? '编辑记录' : '新增' + typeName[it.type], `
-      <div class="field"><label>类型</label>
-        <select id="f_type">
-          ${['memo','done','warn','risk'].map(t => `<option value="${t}" ${t===it.type?'selected':''}>${typeName[t]}</option>`).join('')}
-        </select></div>
+      <div class="row2">
+        <div class="field"><label>类型</label>
+          <select id="f_type">
+            ${['memo','done','warn','risk'].map(t => `<option value="${t}" ${t===it.type?'selected':''}>${typeName[t]}</option>`).join('')}
+          </select></div>
+        <div class="field"><label>时间</label><input type="time" id="f_time" value="${it.time||''}"></div>
+      </div>
       <div class="field"><label>标题</label><input id="f_title" value="${U.esc(it.title)}" placeholder="如：完成XX机构接口联调"></div>
       <div class="field"><label>说明 / 备注</label><textarea id="f_note" placeholder="补充细节、结果、负责人等">${U.esc(it.note)}</textarea></div>
       ${it.type==='done'?`<div class="field"><label><input type="checkbox" id="f_done" ${it.done?'checked':''} style="width:auto;margin-right:6px">已确认完成</label></div>`:''}
@@ -120,6 +124,7 @@ const Daily = {
       if (!title) { toast('请填写标题'); return; }
       const obj = {
         type: document.getElementById('f_type').value,
+        time: document.getElementById('f_time').value,
         title, note: document.getElementById('f_note').value.trim(),
         done: it.type === 'done' ? document.getElementById('f_done').checked : false
       };

@@ -129,9 +129,9 @@ const App = {
       </div>
 
       <div class="grid cols-2">
-        <div class="card">
-          <div class="section-head"><h2>📅 今日工作清单</h2><div class="spacer"></div>
-            <button class="btn sm" onclick="App.go('daily')">前往日常工作区</button></div>
+        <div class="card" style="grid-column:1/-1">
+          <div class="section-head"><h2>📅 今日备忘工作列表</h2><div class="spacer"></div>
+            <button class="btn sm" onclick="App.go('daily')">前往日历 →</button></div>
           ${todays.length ? `<div class="day-events">${todays.map(it => Daily.evRow(today, it)).join('')}</div>`
             : `<div class="empty">今天还没有记录，去日历添加吧</div>`}
         </div>
@@ -146,16 +146,6 @@ const App = {
               <div class="ev-actions">${duePill(r.d)}</div>
             </div>`).join('')}</div>`
             : `<div class="empty">暂无报送项</div>`}
-        </div>
-      </div>
-
-      <div class="grid cols-2">
-        <div class="chart-card">
-          <div class="chart-title">各专区完成度</div>
-          <div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:12px">
-            <div style="text-align:center">${donut(ecomAvg, '#ec6a9c', 110)}<div class="muted" style="font-size:12px;margin-top:4px">电商系统</div></div>
-            <div style="text-align:center">${donut(polAvg, '#b78ad6', 110)}<div class="muted" style="font-size:12px;margin-top:4px">制度建设</div></div>
-          </div>
         </div>
         <div class="chart-card">
           <div class="chart-title">快捷入口</div>
