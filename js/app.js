@@ -198,6 +198,23 @@ const App = {
   registerPWA() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {/* 本地 file:// 下可能失败，可忽略 */});
+      // 检测到新版本时自动激活并刷新，用户无需手动清缓存
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (sessionStorage.getItem('sw_reload')) return;
+        sessionStorage.setItem('sw_reload', '1');
+        location.reload();
+      });
+      navigator.serviceWorker.ready.then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              nw.postMessage('SKIP_WAITING');
+            }
+          });
+        });
+      }).catch(() => {});
     }
   },
   confirmReset() {
