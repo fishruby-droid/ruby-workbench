@@ -95,45 +95,69 @@ const Policy = {
   delItem(id) { confirmDel('确认删除？', () => { DB.delPolicy('items', id); this.render(); toast('已删除'); }); },
 
   /* --- 制度知识库 --- */
+  // 官方目录大类 → 业务人员易懂的分类标签
+  CAT_LABEL: {
+    '综合': '综合 / 基础法规',
+    '经常项目外汇管理': '经常项目',
+    '资本项目外汇管理': '资本项目',
+    '金融机构外汇业务监管': '金融机构监管',
+    '人民币汇率与外汇市场': '汇率与外汇市场',
+    '国际收支与外汇统计': '国际收支统计',
+    '外汇检查与法规适用': '外汇检查',
+    '外汇科技管理': '外汇科技',
+    '人民银行跨境相关': '人民银行跨境',
+    '其他': '其他',
+  },
+  catLabel(c) { return this.CAT_LABEL[c] || c; },
   repo() {
     const items = DB.get().policy.repo;
     const src = ['全部', '本行制度', '监管制度'];
     const cur = this._rfilter || '全部';
-    // 分类维度（按业务条线）
-    const cats = ['全部', ...new Set(items.map(i => i.cat || '其他'))];
     const curCat = this._rcat || '全部';
     const kw = (this._rkw || '').trim();
+    // 分类计数（按映射后的标签）
+    const catCount = {};
+    items.forEach(i => { const c = this.catLabel(i.cat || '其他'); catCount[c] = (catCount[c] || 0) + 1; });
+    const cats = ['全部', ...Object.keys(this.CAT_LABEL).filter(c => catCount[this.catLabel(c)]).map(c => this.catLabel(c))];
     let list = cur === '全部' ? items : items.filter(i => i.src === cur);
-    if (curCat !== '全部') list = list.filter(i => (i.cat || '其他') === curCat);
+    if (curCat !== '全部') list = list.filter(i => this.catLabel(i.cat || '其他') === curCat);
     if (kw) list = list.filter(i => (i.name + (i.no || '') + (i.org || '')).includes(kw));
+    const row = (r) => `<tr>
+      <td><b>${U.esc(r.name)}</b>${r.link?`<br><a href="${U.esc(r.link)}" target="_blank" style="font-size:12px">查看原文 ↗</a>`:''}</td>
+      <td>${r.src==='监管制度'?'<span class="pill blue">监管制度</span>':'<span class="pill purple">本行制度</span>'}</td>
+      <td>${U.esc(this.catLabel(r.cat||'其他'))}</td>
+      <td>${U.esc(r.org||'—')}</td>
+      <td>${U.esc(r.no||'—')}</td>
+      <td><button class="btn ghost sm" onclick="Policy.editRepo('${r.id}')">编辑</button>
+          <button class="btn ghost sm danger" onclick="Policy.delRepo('${r.id}')">删</button></td>
+    </tr>`;
     return `
       <div class="card">
         <div class="section-head"><h2>制度知识库</h2><div class="spacer"></div>
           <button class="btn sm" onclick="Policy.loadOfficial()">📥 载入官方现行法规</button>
           <button class="btn sm" onclick="App.importModule('policy_repo')">⬆ 导入</button>
           <button class="btn primary sm" onclick="Policy.addRepo()">+ 录入制度</button></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px">
           ${src.map(s => `<div class="chip ${s===cur?'on':''}" onclick="Policy.setRFilter('${s}')">${s}</div>`).join('')}
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-          <input class="field" style="flex:1;min-width:160px;padding:8px 12px;border:2px dashed var(--line);border-radius:14px" placeholder="🔍 搜索法规名称 / 文号 / 机构" oninput="Policy.setRKw(this.value)" value="${U.esc(kw)}">
-          <span class="muted" style="font-size:12px">共 ${list.length} 条</span>
+        <div class="repo-layout">
+          <aside class="repo-nav">
+            <div class="repo-nav-title">按业务分类</div>
+            ${cats.map(c => `<div class="repo-cat ${c===curCat?'on':''}" onclick="Policy.setRCat('${c}')">
+              <span>${c}</span><span class="repo-cat-n">${c==='全部'?items.length:(catCount[c]||0)}</span>
+            </div>`).join('')}
+          </aside>
+          <div class="repo-main">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+              <input class="field" style="flex:1;min-width:160px;padding:8px 12px;border:2px dashed var(--line);border-radius:14px" placeholder="🔍 搜索法规名称 / 文号 / 机构" oninput="Policy.setRKw(this.value)" value="${U.esc(kw)}">
+              <span class="muted" style="font-size:12px">共 ${list.length} 条</span>
+            </div>
+            ${list.length ? `<div class="table-wrap"><table class="tbl">
+              <tr><th>制度名称</th><th>来源</th><th>分类</th><th>发文机构</th><th>文号/版本</th><th></th></tr>
+              ${list.map(row).join('')}
+            </table></div>` : `<div class="empty">该分类下暂无法规</div>`}
+          </div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-          ${cats.map(c => `<div class="chip ${c===curCat?'on':''}" onclick="Policy.setRCat('${c}')">${c}</div>`).join('')}
-        </div>
-        ${list.length ? `<div class="table-wrap"><table class="tbl">
-          <tr><th>制度名称</th><th>来源</th><th>分类</th><th>发文机构</th><th>文号/版本</th><th></th></tr>
-          ${list.map(r => `<tr>
-            <td><b>${U.esc(r.name)}</b>${r.link?`<br><a href="${U.esc(r.link)}" target="_blank" style="font-size:12px">查看原文 ↗</a>`:''}</td>
-            <td>${r.src==='监管制度'?'<span class="pill blue">监管制度</span>':'<span class="pill purple">本行制度</span>'}</td>
-            <td>${U.esc(r.cat||'—')}</td>
-            <td>${U.esc(r.org||'—')}</td>
-            <td>${U.esc(r.no||'—')}</td>
-            <td><button class="btn ghost sm" onclick="Policy.editRepo('${r.id}')">编辑</button>
-                <button class="btn ghost sm danger" onclick="Policy.delRepo('${r.id}')">删</button></td>
-          </tr>`).join('')}
-        </table></div>` : `<div class="empty">知识库暂无记录</div>`}
       </div>`;
   },
   setRCat(c) { this._rcat = c; this.renderBody(); },

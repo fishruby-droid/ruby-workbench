@@ -191,6 +191,21 @@ table.tbl tr:hover td { background: var(--panel-2); }
 .table-wrap table.tbl { border: none; }
 .table-wrap table.tbl th { border-radius: 0; }
 
+/* ---------- 制度知识库：分类导航 + 列表 ---------- */
+.repo-layout { display: flex; gap: 16px; align-items: flex-start; }
+.repo-nav { flex: 0 0 210px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--panel-2); border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: 12px; position: sticky; top: 12px; }
+.repo-nav-title { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin-bottom: 4px; letter-spacing: .5px; }
+.repo-cat { display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 9px 12px; border-radius: 12px; cursor: pointer; font-size: 13.5px; color: var(--ink);
+  border: 1.5px solid transparent; transition: all .15s; }
+.repo-cat:hover { background: #fff; border-color: var(--line); }
+.repo-cat.on { background: var(--grad); color: #fff; border-color: #fff; box-shadow: var(--shadow-pop); transform: rotate(-0.6deg); }
+.repo-cat-n { font-size: 11.5px; font-weight: 700; background: rgba(255,255,255,.35); color: inherit;
+  border-radius: 999px; padding: 1px 8px; min-width: 24px; text-align: center; }
+.repo-cat:not(.on) .repo-cat-n { background: var(--brand-soft); color: var(--brand); }
+.repo-main { flex: 1; min-width: 0; }
+
 /* ---------- Progress bar ---------- */
 .bar { height: 8px; background: #eef1f6; border-radius: 999px; overflow: hidden; min-width: 80px; }
 .bar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--brand), var(--brand-2)); }
@@ -342,6 +357,10 @@ table.tbl tr:hover td { background: var(--panel-2); }
 .wp-foot { margin-top: 6px; text-align: right; }
 @media (max-width: 860px) {
   .wp-board { grid-template-columns: repeat(2, 1fr); }
+  .repo-layout { flex-direction: column; }
+  .repo-nav { flex: none; width: 100%; position: static; flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .repo-nav-title { width: 100%; }
+  .repo-cat { flex: 0 0 auto; padding: 7px 12px; }
 }
 @media (max-width: 480px) {
   .wp-board { grid-template-columns: 1fr; }
