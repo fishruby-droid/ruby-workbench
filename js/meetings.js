@@ -149,22 +149,27 @@ const Meetings = {
         const manualTitle = (document.getElementById('im_title').value || '').trim();
         const lines = (p.content || '').split('\n').map(x => x.trim()).filter(Boolean);
         const autoTitle = lines.find(l => !/^[#>]/.test(l) && !/^(会议[概况要点总结]|待办事项|行动项|会议[内容记录]|会议[主题纪要]|参会[人]?|出席)([：:])?$/.test(l)) || '飞书妙记导入';
+        const docxImgs = (Meetings._docxImages || []).filter(Boolean);
         DB.add('meetings', Object.assign({ id: U.uid() }, {
           title: (manualTitle || autoTitle).slice(0, 50),
           date: p.date || U.today(),
-          attend: p.attend, place: p.place, content: p.content, action: p.action, images: p.images || []
+          attend: p.attend, place: p.place, content: p.content, action: p.action,
+          images: [...(p.images || []), ...docxImgs]
         }));
         n++;
       });
-      closeModal(); this.render(); toast('已导入 ' + n + ' 条纪要');
+      closeModal(); delete Meetings._docxImages; this.render(); toast('已导入 ' + n + ' 条纪要');
     });
     const fileInput = document.getElementById('im_file');
     fileInput.onchange = async (ev) => {
       const f = ev.target.files[0]; if (!f) return;
       try {
         if (/\.docx?$/i.test(f.name)) {
-          document.getElementById('im_text').value = await this.readDocx(f);
+          const result = await this.readDocx(f);
+          document.getElementById('im_text').value = result.text;
+          this._docxImages = result.images.map(img => img.dataUrl);
         } else {
+          this._docxImages = [];
           const r = new FileReader(); r.onload = e => { document.getElementById('im_text').value = e.target.result; }; r.readAsText(f);
         }
       } catch (err) { toast('文件解析失败：' + err.message); }
@@ -252,18 +257,21 @@ const Meetings = {
       action: action.join('\n'), images: images.filter(u => !u.match(/internal-api-drive-stream/)) // 过滤飞书内部鉴权图
     };
   },
-  /* 纯前端读取 .docx */
+  /* 纯前端读取 .docx：返回 {text, images} 其中 images 为 [{name, dataUrl}] */
   async readDocx(file) {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    return await this._extractDocxText(bytes);
+    return await this._extractDocx(bytes);
   },
-  async _extractDocxText(bytes) {
+  async _extractDocx(bytes) {
     const zip = this._parseZip(bytes);
     const entry = zip.find(z => z.name === 'word/document.xml') || zip.find(z => z.name.endsWith('document.xml'));
     if (!entry) throw new Error('未找到 document.xml');
     let xmlBytes = entry.data;
-    if (entry.compressed) xmlBytes = await this._inflate(xmlBytes);
+    if (entry.compressed) {
+      try { xmlBytes = await this._inflate(xmlBytes); } catch(e) { xmlBytes = entry.data; }
+    }
     const xml = new TextDecoder('utf-8').decode(xmlBytes);
+    // 提取文本
     const paras = xml.split(/<w:p[ >]/).slice(1);
     const out = [];
     for (const p of paras) {
@@ -271,7 +279,46 @@ const Meetings = {
       const line = texts.join('').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
       out.push(line);
     }
-    return out.join('\n');
+    const text = out.join('\n');
+    // 提取嵌入图片
+    const relsEntry = zip.find(z => z.name === 'word/_rels/document.xml.rels');
+    let relsXml = '';
+    if (relsEntry) {
+      let d = relsEntry.data;
+      if (relsEntry.compressed) { try { d = await this._inflate(d); } catch(e) {} }
+      relsXml = new TextDecoder('utf-8').decode(d);
+    }
+    // 构建 rId → target 映射（仅图片）
+    const ridMap = {};
+    const relMatches = [...relsXml.matchAll(/<Relationship[^>]*\s+Id="([^"]+)"[^>]*\s+Type="([^"]+)"[^>]*\s+Target="([^"]+)"/g)];
+    for (const rm of relMatches) {
+      if (rm[2].includes('image')) ridMap[rm[1]] = rm[3];
+    }
+    // 找文档中所有图片引用
+    const blipIds = [...xml.matchAll(/<a:blip[^>]*r:embed="([^"]+)"/g)].map(m => m[1]);
+    const images = [];
+    for (const rid of blipIds) {
+      const target = ridMap[rid];
+      if (!target) continue;
+      const imgEntry = zip.find(z => z.name === 'word/' + target || z.name.endsWith(target));
+      if (!imgEntry) continue;
+      let imgData = imgEntry.data;
+      if (imgEntry.compressed) { try { imgData = await this._inflate(imgData); } catch(e) {} }
+      // 判断 MIME
+      const ext = target.split('.').pop().toLowerCase();
+      const mimeMap = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', svg: 'image/svg+xml' };
+      const mime = mimeMap[ext] || 'image/jpeg';
+      // 转 base64 data URL
+      const b64 = this._bytesToBase64(imgData);
+      images.push({ name: target, dataUrl: 'data:' + mime + ';base64,' + b64 });
+    }
+    return { text, images };
+  },
+  _bytesToBase64(bytes) {
+    let binary = '';
+    const len = bytes.length;
+    for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
   },
   _parseZip(bytes) {
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -303,9 +350,25 @@ const Meetings = {
     return entries;
   },
   async _inflate(compressed) {
-    const ds = new DecompressionStream('deflate-raw');
-    const stream = new Blob([compressed]).stream().pipeThrough(ds);
-    const ab = await new Response(stream).arrayBuffer();
-    return new Uint8Array(ab);
+    try {
+      const ds = new DecompressionStream('deflate-raw');
+      const stream = new Blob([compressed]).stream().pipeThrough(ds);
+      // 改用 reader 逐块读取，避免 Response 的潜在问题
+      const reader = stream.getReader();
+      const chunks = [];
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+      const result = new Uint8Array(totalLen);
+      let pos = 0;
+      for (const c of chunks) { result.set(c, pos); pos += c.length; }
+      return result;
+    } catch (e) {
+      // 如果 deflate 失败，尝试 store（无压缩）
+      return compressed;
+    }
   },
 };
