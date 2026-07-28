@@ -95,7 +95,7 @@ const Policy = {
   delItem(id) { confirmDel('确认删除？', () => { DB.delPolicy('items', id); this.render(); toast('已删除'); }); },
 
   /* --- 制度知识库 --- */
-  // 官方目录大类 → 业务人员易懂的分类标签
+  // 官方目录大类 → 业务人员易懂的分类标签 + 配色
   CAT_LABEL: {
     '综合': '综合 / 基础法规',
     '经常项目外汇管理': '经常项目',
@@ -108,12 +108,26 @@ const Policy = {
     '人民银行跨境相关': '人民银行跨境',
     '其他': '其他',
   },
+  CAT_COLOR: {
+    '综合': '#ec6a9c',
+    '经常项目外汇管理': '#6fc4b6',
+    '资本项目外汇管理': '#b78ad6',
+    '金融机构外汇业务监管': '#f2c46b',
+    '人民币汇率与外汇市场': '#e98ab0',
+    '国际收支与外汇统计': '#7ec8a0',
+    '外汇检查与法规适用': '#d98a6b',
+    '外汇科技管理': '#9ab8e0',
+    '人民银行跨境相关': '#8ec9c0',
+    '其他': '#c3b2bd',
+  },
   catLabel(c) { return this.CAT_LABEL[c] || c; },
+  catColor(c) { return this.CAT_COLOR[c] || '#c3b2bd'; },
   repo() {
     const items = DB.get().policy.repo;
     const src = ['全部', '本行制度', '监管制度'];
     const cur = this._rfilter || '全部';
     const curCat = this._rcat || '全部';
+    const curSub = this._rsub || '全部';
     const kw = (this._rkw || '').trim();
     // 分类计数（按映射后的标签）
     const catCount = {};
@@ -121,11 +135,18 @@ const Policy = {
     const cats = ['全部', ...Object.keys(this.CAT_LABEL).filter(c => catCount[this.catLabel(c)]).map(c => this.catLabel(c))];
     let list = cur === '全部' ? items : items.filter(i => i.src === cur);
     if (curCat !== '全部') list = list.filter(i => this.catLabel(i.cat || '其他') === curCat);
+    // 子类计数（仅当前大类下）
+    const subCount = {};
+    list.forEach(i => { const s = i.sub || '其他'; subCount[s] = (subCount[s] || 0) + 1; });
+    const subs = ['全部', ...Object.keys(subCount).filter(s => s !== '全部')];
+    if (curSub !== '全部') list = list.filter(i => (i.sub || '其他') === curSub);
     if (kw) list = list.filter(i => (i.name + (i.no || '') + (i.org || '')).includes(kw));
+    const activeCatKey = Object.keys(this.CAT_LABEL).find(k => this.CAT_LABEL[k] === curCat) || '其他';
+    const accent = curCat === '全部' ? 'var(--brand)' : this.catColor(activeCatKey);
     const row = (r) => `<tr>
       <td><b>${U.esc(r.name)}</b>${r.link?`<br><a href="${U.esc(r.link)}" target="_blank" style="font-size:12px">查看原文 ↗</a>`:''}</td>
       <td>${r.src==='监管制度'?'<span class="pill blue">监管制度</span>':'<span class="pill purple">本行制度</span>'}</td>
-      <td>${U.esc(this.catLabel(r.cat||'其他'))}</td>
+      <td>${U.esc(this.catLabel(r.cat||'其他'))}<br><span class="muted" style="font-size:11px">${U.esc(r.sub||'')}</span></td>
       <td>${U.esc(r.org||'—')}</td>
       <td>${U.esc(r.no||'—')}</td>
       <td><button class="btn ghost sm" onclick="Policy.editRepo('${r.id}')">编辑</button>
@@ -143,24 +164,34 @@ const Policy = {
         <div class="repo-layout">
           <aside class="repo-nav">
             <div class="repo-nav-title">按业务分类</div>
-            ${cats.map(c => `<div class="repo-cat ${c===curCat?'on':''}" onclick="Policy.setRCat('${c}')">
-              <span>${c}</span><span class="repo-cat-n">${c==='全部'?items.length:(catCount[c]||0)}</span>
-            </div>`).join('')}
+            ${cats.map(c => {
+              const key = Object.keys(this.CAT_LABEL).find(k => this.CAT_LABEL[k] === c) || '其他';
+              const col = this.catColor(key);
+              const on = c === curCat;
+              return `<div class="repo-cat ${on?'on':''}" onclick="Policy.setRCat('${c}')" ${on?'':`style="border-left:4px solid ${col}"`}>
+                <span>${c}</span><span class="repo-cat-n" ${on?'':`style="background:${col}22;color:${col}"`}>${c==='全部'?items.length:(catCount[c]||0)}</span>
+              </div>`;
+            }).join('')}
           </aside>
           <div class="repo-main">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            ${curCat !== '全部' ? `
+            <div class="repo-subbar" style="border-left:4px solid ${accent}">
+              ${subs.map(s => `<div class="chip ${s===curSub?'on':''}" onclick="Policy.setRSub('${s}')" ${s===curSub?`style="background:${accent};border-color:${accent}"`:''}>${s} <span class="repo-sub-n">${s==='全部'?(catCount[curCat]||0):(subCount[s]||0)}</span></div>`).join('')}
+            </div>` : ''}
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0">
               <input class="field" style="flex:1;min-width:160px;padding:8px 12px;border:2px dashed var(--line);border-radius:14px" placeholder="🔍 搜索法规名称 / 文号 / 机构" oninput="Policy.setRKw(this.value)" value="${U.esc(kw)}">
               <span class="muted" style="font-size:12px">共 ${list.length} 条</span>
             </div>
             ${list.length ? `<div class="table-wrap"><table class="tbl">
-              <tr><th>制度名称</th><th>来源</th><th>分类</th><th>发文机构</th><th>文号/版本</th><th></th></tr>
+              <tr><th>制度名称</th><th>来源</th><th>分类 / 子类</th><th>发文机构</th><th>文号/版本</th><th></th></tr>
               ${list.map(row).join('')}
             </table></div>` : `<div class="empty">该分类下暂无法规</div>`}
           </div>
         </div>
       </div>`;
   },
-  setRCat(c) { this._rcat = c; this.renderBody(); },
+  setRCat(c) { this._rcat = c; this._rsub = '全部'; this.renderBody(); },
+  setRSub(s) { this._rsub = s; this.renderBody(); },
   setRKw(v) { this._rkw = v; this.renderBody(); },
   setRFilter(s) { this._rfilter = s; this.renderBody(); },
   /** 一键载入官方现行有效跨境法规（外汇局目录 + 人行跨境相关），去重追加，不覆盖已有 */
