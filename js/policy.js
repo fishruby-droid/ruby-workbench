@@ -109,7 +109,7 @@ const Policy = {
     return `
       <div class="card">
         <div class="section-head"><h2>制度知识库</h2><div class="spacer"></div>
-          <button class="btn sm" onclick="Policy.loadOfficial()">⬇ 载入官方现行法规</button>
+          <button class="btn sm" onclick="Policy.loadOfficial()">📥 载入官方现行法规</button>
           <button class="btn sm" onclick="App.importModule('policy_repo')">⬆ 导入</button>
           <button class="btn primary sm" onclick="Policy.addRepo()">+ 录入制度</button></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
@@ -151,7 +151,8 @@ const Policy = {
       DB.addPolicy('repo', Object.assign({}, r));
       added++;
     });
-    this.renderBody();
+    if (this.tab === 'repo') this.renderBody();
+    else if (typeof App !== 'undefined' && App.cur === 'policy') this.render();
     toast(added ? `已载入 ${added} 条官方现行法规` : '官方法规已全部在库，无需重复载入');
   },
   addRepo() { this.repoForm({}); },

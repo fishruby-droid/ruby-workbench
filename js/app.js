@@ -113,6 +113,35 @@ const App = {
         <span class="muted" style="margin-left:8px;font-size:12.5px">前往「监管报送」处理</span>
       </div>` : ''}
 
+      <!-- 官方法规一键载入 -->
+      ${(() => {
+        const repo = d.policy.repo || [];
+        const official = repo.filter(r => (r.id || '').startsWith('reg_')).length;
+        if (official > 0) {
+          return `<div class="card" style="border-color:var(--green);background:linear-gradient(90deg,#eafaf5,#fff);margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span style="font-size:22px">📚</span>
+              <div style="flex:1;min-width:180px">
+                <b>官方法规知识库已就绪</b>
+                <div class="muted" style="font-size:12.5px">已载入 ${official} 条现行有效的跨境业务法规（外汇局 + 人行）</div>
+              </div>
+              <button class="btn sm" onclick="App.go('policy');Policy.switch('repo')">查看知识库</button>
+              <button class="btn ghost sm" onclick="Policy.loadOfficial()">重新载入</button>
+            </div>
+          </div>`;
+        }
+        return `<div class="card" style="border-color:var(--brand);background:linear-gradient(90deg,var(--brand-soft),#fff);margin-bottom:18px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-size:22px">📥</span>
+            <div style="flex:1;min-width:180px">
+              <b>一键载入官方现行跨境法规</b>
+              <div class="muted" style="font-size:12.5px">来自人行、外汇局官网的 ${ (typeof window.REGULATIONS_BUNDLE!=='undefined')?window.REGULATIONS_BUNDLE.length:0 } 条现行有效法规（经常项目 / 资本项目 / 外汇市场等）</div>
+            </div>
+            <button class="btn primary" onclick="Policy.loadOfficial()">⬇ 立即载入</button>
+          </div>
+        </div>`;
+      })()}
+
       <div class="grid cols-4" style="margin-bottom:18px">
         <div class="stat-tile" onclick="App.go('daily')" style="cursor:pointer">
           <div class="label">📅 今日工作</div><div class="value">${todays.length}</div>
