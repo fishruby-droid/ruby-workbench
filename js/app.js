@@ -202,10 +202,9 @@ const App = {
         title, note: document.getElementById('qt_note').value.trim(),
         done: false
       });
-      closeModal(); this.homeRender(); toast('已添加');
+      closeModal(); App.go('home'); toast('已添加');
     });
   },
-  homeRender() { document.getElementById('view-home').innerHTML = this.home(); },
 
   registerPWA() {
     if ('serviceWorker' in navigator) {
