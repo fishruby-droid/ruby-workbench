@@ -7,7 +7,8 @@ const Report = {
     const withNext = list.map(r => {
       const nx = nextDue(r);
       const d = U.daysFromToday(nx);
-      return { ...r, nx, d };
+      const periodText = this.periodLabel(r.freq, r.last || U.today());
+      return { ...r, nx, d, periodText };
     }).sort((a, b) => a.d - b.d);
 
     const overdue = withNext.filter(r => r.d < 0).length;
@@ -28,16 +29,19 @@ const Report = {
           <button class="btn sm" onclick="App.importModule('report')">⬆ 导入</button>
           <button class="btn primary sm" onclick="Report.add()">+ 新增报送项</button></div>
         ${withNext.length ? `<div class="table-wrap"><table class="tbl">
-          <tr><th>报表/文件</th><th>报送对象</th><th>频率</th><th>下一次到期</th><th>状态</th><th></th></tr>
+          <tr><th>报表/文件</th><th>报送对象</th><th>频率</th><th>最近报送</th><th>本次周期</th><th>状态</th><th></th></tr>
           ${withNext.map(r => `<tr>
             <td><b>${U.esc(r.name)}</b>${r.note?`<br><span class="muted" style="font-size:12px">${U.esc(r.note)}</span>`:''}</td>
             <td>${U.esc(r.to||'—')}</td>
             <td><span class="pill gray">${freqText(r.freq)}</span></td>
-            <td>${r.nx}<br><span class="muted" style="font-size:12px">${r.d<0?`已逾期 ${-r.d} 天`:r.d===0?'今天到期':`还有 ${r.d} 天`}</span></td>
-            <td>${duePill(r.d)}</td>
-            <td><button class="btn ghost sm" onclick="Report.done('${r.id}')">已报</button>
-                <button class="btn ghost sm" onclick="Report.edit('${r.id}')">编辑</button>
-                <button class="btn ghost sm danger" onclick="Report.del('${r.id}')">删</button></td>
+            <td>${r.last||'—'}</td>
+            <td>${r.periodText || '—'}</td>
+            <td>${duePill(r.d)}<br><span class="muted" style="font-size:11px">${r.d<0?`逾期 ${-r.d} 天`:r.d===0?'今天到期':`剩 ${r.d} 天`}</span></td>
+            <td style="white-space:nowrap">
+              <button class="btn primary sm" onclick="Report.done('${r.id}')" style="padding:4px 10px;font-size:12px">✅ 已报送</button>
+              <button class="btn ghost sm" onclick="Report.edit('${r.id}')">编辑</button>
+              <button class="btn ghost sm danger" onclick="Report.del('${r.id}')">删</button>
+            </td>
           </tr>`).join('')}
         </table></div>` : `<div class="empty">暂无报送项，点击右上角添加</div>`}
       </div>`;
@@ -71,9 +75,42 @@ const Report = {
   },
   done(id) {
     const r = DB.get().report.find(x => x.id === id);
-    if (r) { DB.update('report', id, { last: U.today() }); this.render(); App.refreshBadges(); toast('已记录本次报送'); }
+    if (!r) return;
+    const period = this.periodLabel(r.freq, r.last || U.today());
+    const nextLabel = r.freq === 'once' ? '（一次性任务，将标记完成）' : '，自动生成下一期';
+    openModal('确认报送', `
+      <p style="margin:0 0 8px">确认已完成 <b>${U.esc(r.name)}</b> 的报送？</p>
+      <p class="muted" style="margin:0">当期：${period}${nextLabel}</p>
+      <div class="field" style="margin-top:10px"><label>实际报送日期</label><input type="date" id="r_done_date" value="${U.today()}"></div>
+    `, () => {
+      const doneDate = document.getElementById('r_done_date').value || U.today();
+      const nextPeriod = this.periodLabel(r.freq, doneDate);
+      DB.update('report', id, { last: doneDate });
+      if (r.freq === 'once') {
+        // 一次性：移除（已完成）
+        DB.remove('report', id);
+        this.render(); App.refreshBadges();
+        toast('✅ ' + r.name + ' 已完成（一次性任务已归档）');
+      } else {
+        this.render(); App.refreshBadges();
+        toast('✅ ' + period + ' 已报送，下一期 ' + nextPeriod + ' 已自动生成');
+      }
+    });
   },
   del(id) { confirmDel('确认删除？', () => { DB.remove('report', id); this.render(); App.refreshBadges(); toast('已删除'); }); },
+  /* 计算当期报送周期标签 */
+  periodLabel(freq, last) {
+    const d = new Date(last);
+    const m = d.getMonth() + 1, y = d.getFullYear();
+    const q = Math.ceil(m / 3);
+    if (freq === 'daily') return y + '/' + (m<10?'0':'') + m + '/' + (d.getDate()<10?'0':'') + d.getDate() + '期';
+    if (freq === 'weekly') return y + '年第' + Math.ceil((d.getDate()) / 7) + '周';
+    if (freq === 'monthly') return y + '年' + m + '月';
+    if (freq === 'quarterly') return y + '年第' + q + '季度';
+    if (freq === 'half') return y + '年' + (m <= 6 ? '上半年' : '下半年');
+    if (freq === 'yearly') return y + '年';
+    return '—';
+  },
 };
 
 /* 频率 -> 天数 */
