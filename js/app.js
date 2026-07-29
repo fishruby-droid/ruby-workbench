@@ -5,6 +5,7 @@ const PAGES = [
   { id: 'ecom',  ic: '🛒', name: '电商系统', title: '跨境电商系统专区', sub: '系统建设 · 对接 · 需求 · 数据', group: '业务系统', badge: () => reportCount.ecom },
   { id: 'other', ic: '🧩', name: '其他系统', title: '其他系统进度', sub: '按需求分类记录建设进度', group: '业务系统', badge: () => reportCount.other },
   { id: 'meetings', ic: '📝', name: '会议纪要', title: '会议纪要专区', sub: '会议记录 · 飞书妙记导入', group: '业务系统', badge: () => reportCount.meetings },
+  { id: 'notes', ic: '💡', name: '灵感笔记', title: '灵感笔记', sub: '随手记录灵感与想法', group: '业务系统', badge: () => 0 },
   { id: 'policy',ic: '📚', name: '制度建设', title: '制度建设专区', sub: '建设进度 · 制度知识库', group: '业务系统', badge: () => reportCount.policy },
   { id: 'report',ic: '⏰', name: '监管报送', title: '监管报送专区', sub: '报表文件报送与到期提醒', group: '业务系统', badge: () => reportCount.report },
   { id: 'data',  ic: '💾', name: '数据管理', title: '数据管理', sub: '备份恢复 · 多设备同步 · 安装指南', group: '设置', badge: () => 0 },
@@ -72,7 +73,7 @@ const App = {
     if (id === 'home') c.innerHTML = this.home();
     else {
       c.innerHTML = `<div id="view-${id}"></div>`;
-      ({ daily: () => Daily.render(), ecom: () => Ecom.render(), other: () => Other.render(), meetings: () => Meetings.render(), policy: () => Policy.render(), report: () => Report.render(), data: () => DataMgr.render() })[id]();
+      ({ daily: () => Daily.render(), ecom: () => Ecom.render(), other: () => Other.render(), meetings: () => Meetings.render(), notes: () => Notes.render(), policy: () => Policy.render(), report: () => Report.render(), data: () => DataMgr.render() })[id]();
     }
     this.refreshBadges();
     window.scrollTo(0, 0);
@@ -131,6 +132,7 @@ const App = {
       <div class="grid cols-2">
         <div class="card" style="grid-column:1/-1">
           <div class="section-head"><h2>📅 TO DO LIST（本周）</h2><div class="spacer"></div>
+            <button class="btn primary sm" onclick="App.quickTodo()">+ 快速新增</button>
             <button class="btn sm" onclick="App.go('daily')">前往日历 →</button></div>
           ${(() => {
             // 本周一到周日
@@ -175,6 +177,35 @@ const App = {
         </div>
       </div>`;
   },
+  /* 首页快速新增 TODO */
+  quickTodo() {
+    const typeName = { memo: '待办事项', done: '工作进展', warn: '待跟进', risk: '风险事项' };
+    openModal('快速新增', `
+      <div class="row2">
+        <div class="field"><label>类型</label>
+          <select id="qt_type">${['memo','done','warn','risk'].map(t => `<option value="${t}">${typeName[t]}</option>`).join('')}</select></div>
+        <div class="field"><label>日期</label><input type="date" id="qt_date" value="${U.today()}"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>时间（可选）</label><input type="time" id="qt_time"></div>
+        <div class="field"><label>标题</label><input id="qt_title" placeholder="如：确认接口方案"></div>
+      </div>
+      <div class="field"><label>备注（可选）</label><textarea id="qt_note" style="min-height:60px" placeholder="补充说明"></textarea></div>
+    `, () => {
+      const title = document.getElementById('qt_title').value.trim();
+      if (!title) { toast('请填写标题'); return; }
+      const dt = document.getElementById('qt_date').value || U.today();
+      DB.addMemo(dt, {
+        id: U.uid(),
+        type: document.getElementById('qt_type').value,
+        time: document.getElementById('qt_time').value,
+        title, note: document.getElementById('qt_note').value.trim(),
+        done: false
+      });
+      closeModal(); this.homeRender(); toast('已添加');
+    });
+  },
+  homeRender() { document.getElementById('view-home').innerHTML = this.home(); },
 
   registerPWA() {
     if ('serviceWorker' in navigator) {

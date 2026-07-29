@@ -17,6 +17,7 @@ const DB = (() => {
     other: [],         // 其他系统进度（按需求分类记录）
     report: [],        // 监管报送
     meetings: [],      // 会议纪要（独立模块）：{ id,title,date,attend,place,content,action }
+    notes: [],         // 灵感笔记：{ id,title,content,date,tags }
     meta: { created: Date.now() }
   });
   let data = load();

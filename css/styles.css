@@ -324,6 +324,15 @@ table.tbl tr:hover td { background: var(--panel-2); }
 
 /* ---------- Misc ---------- */
 .empty { text-align: center; color: var(--ink-faint); padding: 30px 10px; font-size: 13px; }
+
+/* ---------- 灵感笔记 ---------- */
+.nt-card { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: background .12s; }
+.nt-card:hover { background: var(--panel-2); }
+.nt-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.nt-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.nt-arrow { font-size: 13px; color: var(--ink-faint); flex-shrink: 0; }
+.nt-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.nt-body { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--line); }
 .kpi-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .muted { color: var(--ink-faint); }
 .divider { height: 1px; background: var(--line); margin: 14px 0; }
