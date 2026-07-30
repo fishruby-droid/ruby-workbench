@@ -154,7 +154,7 @@ const App = {
               const t = T[it.type] || T.memo;
               const dn = it.done || false;
               return `<div class="ev${dn?' ev-done':''}">
-                <div class="checkbox ${dn?'on':''}" onclick="Daily.toggle('${it._dt}','${it.id}')">${dn?'✓':''}</div>
+                <div class="checkbox ${dn?'on':''}" onclick="App.toggleTodo('${it._dt}','${it.id}')">${dn?'✓':''}</div>
                 <div class="ev-main">
                   <div class="ev-title">${U.esc(it.title)} ${it.time?`<span class="pill gray" style="font-size:11px;padding:0 6px">${U.esc(it.time)}</span>`:''} <span class="pill purple" style="font-size:11px;padding:0 6px">${U.esc(it._lb)}</span></div>
                   ${it.note ? `<div class="ev-meta">${U.esc(it.note)}</div>` : ''}
@@ -177,6 +177,12 @@ const App = {
             : `<div class="empty">暂无报送项</div>`}
         </div>
       </div>`;
+  },
+  /* 首页勾选 TODO（仅更新数据 + 重绘首页，不影响日历视图） */
+  toggleTodo(dt, id) {
+    const it = (DB.get().memo[dt] || []).find(x => x.id === id);
+    if (it) DB.updMemo(dt, id, { done: !it.done });
+    this.go('home');
   },
   /* 首页快速新增 TODO */
   quickTodo() {
