@@ -148,6 +148,7 @@ const App = {
               const dt = U.fmt(dd);
               (md[dt] || []).slice(0, 6).forEach(it => { wi.push({ ...it, _dt: dt, _lb: lb[i] + (dt===U.today()?' (今天)':'') }); });
             });
+            wi.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0)); // 未完成在前，已完成在后
             const T = { memo:['📝','待办事项','var(--blue-soft)'], done:['💪','工作进展','var(--green-soft)'], warn:['⏳','待跟进','var(--amber-soft)'], risk:['⚠️','风险事项','var(--red-soft)'] };
             return wi.length ? wi.slice(0, 30).map(it => {
               const t = T[it.type] || T.memo;
