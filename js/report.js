@@ -113,16 +113,29 @@ const Report = {
   },
 };
 
-/* 频率 -> 天数 */
-const FREQ_DAYS = { daily: 1, weekly: 7, monthly: 30, quarterly: 91, half: 182, yearly: 365, once: 9999 };
+/* 频率 -> 周期推进（按日历周期精确计算） */
+function addPeriod(d, freq) {
+  const x = new Date(d + 'T00:00:00');
+  if (freq === 'daily') x.setDate(x.getDate() + 1);
+  else if (freq === 'weekly') x.setDate(x.getDate() + 7);
+  else if (freq === 'monthly') x.setMonth(x.getMonth() + 1);
+  else if (freq === 'quarterly') x.setMonth(x.getMonth() + 3);
+  else if (freq === 'half') x.setMonth(x.getMonth() + 6);
+  else if (freq === 'yearly') x.setFullYear(x.getFullYear() + 1);
+  else x.setDate(x.getDate() + 30);
+  return U.fmt(x);
+}
 function freqText(f) { return { daily:'每日', weekly:'每周', monthly:'每月', quarterly:'每季', half:'每半年', yearly:'每年', once:'一次性' }[f] || f; }
-/* 计算下一次到期日 */
+/* 计算下一次到期日：从最近报送日起至少推进一个周期，直至今天之后 */
 function nextDue(r) {
   const ld = r.last || U.today();
-  const step = FREQ_DAYS[r.freq] || 30;
   if (r.freq === 'once') return ld;
   let cur = ld;
-  while (U.daysFromToday(cur) < 0) cur = U.addDays(cur, step);
+  let guard = 0;
+  do {
+    cur = addPeriod(cur, r.freq);
+    guard++;
+  } while (U.daysFromToday(cur) < 0 && guard < 120);
   return cur;
 }
 function duePill(d) {
