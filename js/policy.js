@@ -24,7 +24,9 @@ const Policy = {
     const items = DB.get().policy.items;
     const cats = ['全部', ...new Set(items.map(i => i.cat || '其他'))];
     const cur = this._filter || '全部';
-    const list = cur === '全部' ? items : items.filter(i => (i.cat || '其他') === cur);
+    // 已完成(100%)的排到最下面
+    const list = (cur === '全部' ? items.slice() : items.filter(i => (i.cat || '其他') === cur))
+      .sort((a, b) => (Number(a.progress || 0) >= 100 ? 1 : 0) - (Number(b.progress || 0) >= 100 ? 1 : 0));
     const avg = items.length ? Math.round(items.reduce((s, i) => s + Number(i.progress || 0), 0) / items.length) : 0;
     const done = items.filter(i => Number(i.progress || 0) >= 100).length;
     const draft = items.filter(i => Number(i.progress || 0) < 100).length;
