@@ -8,7 +8,8 @@ const Report = {
       const nx = nextDue(r);
       const d = U.daysFromToday(nx);
       const periodText = this.periodLabel(r.freq, r.last || U.today());
-      return { ...r, nx, d, periodText };
+      const nextPeriod = this.periodLabel(r.freq, nx); // 下一期所属期间
+      return { ...r, nx, d, periodText, nextPeriod };
     }).sort((a, b) => a.d - b.d);
 
     const overdue = withNext.filter(r => r.d < 0).length;
@@ -29,13 +30,13 @@ const Report = {
           <button class="btn sm" onclick="App.importModule('report')">⬆ 导入</button>
           <button class="btn primary sm" onclick="Report.add()">+ 新增报送项</button></div>
         ${withNext.length ? `<div class="table-wrap"><table class="tbl">
-          <tr><th>报表/文件</th><th>报送对象</th><th>频率</th><th>最近报送</th><th>本次周期</th><th>状态</th><th></th></tr>
+          <tr><th>报表/文件</th><th>报送对象</th><th>频率</th><th>最近报送</th><th>下期到期</th><th>状态</th><th></th></tr>
           ${withNext.map(r => `<tr>
             <td><b>${U.esc(r.name)}</b>${r.note?`<br><span class="muted" style="font-size:12px">${U.esc(r.note)}</span>`:''}</td>
             <td>${U.esc(r.to||'—')}</td>
             <td><span class="pill gray">${freqText(r.freq)}</span></td>
-            <td>${r.last||'—'}</td>
-            <td>${r.periodText || '—'}</td>
+            <td>${r.last||'—'}${r.periodText&&r.periodText!=='—'?`<br><span class="muted" style="font-size:11px">(${r.periodText})</span>`:''}</td>
+            <td><b>${r.nx}</b><br><span class="muted" style="font-size:11px">${r.nextPeriod && r.nextPeriod !== '—' ? r.nextPeriod : ''}</span></td>
             <td>${duePill(r.d)}<br><span class="muted" style="font-size:11px">${r.d<0?`逾期 ${-r.d} 天`:r.d===0?'今天到期':`剩 ${r.d} 天`}</span></td>
             <td style="white-space:nowrap">
               <button class="btn primary sm" onclick="Report.done('${r.id}')" style="padding:4px 10px;font-size:12px">✅ 已报送</button>
@@ -92,8 +93,10 @@ const Report = {
         this.render(); App.refreshBadges();
         toast('✅ ' + r.name + ' 已完成（一次性任务已归档）');
       } else {
+        const nextNx = nextDue(Object.assign({}, r, { last: doneDate }));
+        const nextLabel = this.periodLabel(r.freq, nextNx);
         this.render(); App.refreshBadges();
-        toast('✅ ' + period + ' 已报送，下一期 ' + nextPeriod + ' 已自动生成');
+        toast('✅ ' + period + ' 已报送，下期 ' + nextNx + '（' + nextLabel + '）已自动生成');
       }
     });
   },
