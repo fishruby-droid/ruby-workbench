@@ -57,9 +57,9 @@ const Daily = {
   shift(n) { this.cur = new Date(this.cur.getFullYear(), this.cur.getMonth() + n, 1); this.render(); },
   goToday() { this.cur = new Date(); this.selDate = U.today(); this.render(); },
   renderDay(dt) {
-    const items = DB.get().memo[dt] || [];
-    const done = items.filter(i => i.type === 'done' && i.done).length;
-    const total = items.filter(i => i.type === 'done').length;
+    const items = (DB.get().memo[dt] || []).slice().sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0)); // 未完成在前
+    const done = items.filter(i => i.done).length;
+    const total = items.length;
     const html = `
       <div class="card">
         <div class="section-head">
