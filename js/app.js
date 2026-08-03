@@ -170,6 +170,9 @@ const App = {
                   ${it.note ? `<div class="ev-meta">${U.esc(it.note)}</div>` : ''}
                   <div class="ev-meta">${t[1]}${dn?' · 已完成':''}</div>
                 </div>
+                <div class="ev-actions">
+                  <button class="btn ghost sm" onclick="App.editTodo('${it._dt}','${it.id}')">编辑</button>
+                </div>
               </div>`;
             }).join('') : `<div class="empty">本周暂无待办，去日历添加吧</div>`;
           })()}
@@ -193,6 +196,43 @@ const App = {
     const it = (DB.get().memo[dt] || []).find(x => x.id === id);
     if (it) DB.updMemo(dt, id, { done: !it.done });
     this.go('home');
+  },
+  /* 首页编辑 TODO（可修改日期，日期变更自动迁移） */
+  editTodo(dt, id) {
+    const it = (DB.get().memo[dt] || []).find(x => x.id === id);
+    if (!it) return;
+    const typeName = { memo: '待办事项', done: '工作进展', warn: '待跟进', risk: '风险事项' };
+    openModal('编辑待办', `
+      <div class="row2">
+        <div class="field"><label>类型</label>
+          <select id="et_type">${['memo','done','warn','risk'].map(t => `<option value="${t}" ${t===it.type?'selected':''}>${typeName[t]}</option>`).join('')}</select></div>
+        <div class="field"><label>日期</label><input type="date" id="et_date" value="${dt}"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>时间（可选）</label><input type="time" id="et_time" value="${it.time||''}"></div>
+        <div class="field"><label>标题</label><input id="et_title" value="${U.esc(it.title)}" placeholder="任务内容"></div>
+      </div>
+      <div class="field"><label>备注（可选）</label><textarea id="et_note" style="min-height:60px" placeholder="补充说明">${U.esc(it.note||'')}</textarea></div>
+      <div class="field"><label><input type="checkbox" id="et_done" ${it.done?'checked':''} style="width:auto;margin-right:6px">已完成</label></div>
+    `, () => {
+      const title = document.getElementById('et_title').value.trim();
+      if (!title) { toast('请填写标题'); return; }
+      const newDt = document.getElementById('et_date').value || dt;
+      const obj = {
+        type: document.getElementById('et_type').value,
+        time: document.getElementById('et_time').value,
+        title, note: document.getElementById('et_note').value.trim(),
+        done: document.getElementById('et_done').checked
+      };
+      if (newDt === dt) {
+        DB.updMemo(dt, id, obj);
+      } else {
+        // 日期变更：从原日期移除，加到新日期
+        DB.delMemo(dt, id);
+        DB.addMemo(newDt, Object.assign({ id }, obj));
+      }
+      closeModal(); App.go('home'); toast('已保存');
+    });
   },
   /* 首页快速新增 TODO */
   quickTodo() {
