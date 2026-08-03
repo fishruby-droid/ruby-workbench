@@ -59,7 +59,11 @@ const Report = {
           ${[['daily','每日'],['weekly','每周'],['monthly','每月'],['quarterly','每季'],['half','每半年'],['yearly','每年'],['once','一次性']].map(f=>`<option value="${f[0]}" ${f[0]===r.freq?'selected':''}>${f[1]}</option>`).join('')}
         </select></div>
       </div>
-      <div class="field"><label>最近一次报送日期</label><input type="date" id="r_last" value="${r.last||U.today()}"></div>
+      <div class="row2">
+        <div class="field"><label>最近一次报送日期</label><input type="date" id="r_last" value="${r.last||U.today()}"></div>
+        <div class="field"><label>下次报送日期</label><input type="date" id="r_next" value="${r.next||(r.last?nextDue(r):'')}"></div>
+      </div>
+      <div class="muted" style="font-size:12px;margin:-6px 0 10px">下次报送日期留空则按「最近报送日期 + 频率」自动计算。</div>
       <div class="field"><label>备注</label><textarea id="r_note" placeholder="报送渠道、要求等">${U.esc(r.note||'')}</textarea></div>
     `, () => {
       const name = document.getElementById('r_name').value.trim();
@@ -68,6 +72,7 @@ const Report = {
         name, to: document.getElementById('r_to').value.trim(),
         freq: document.getElementById('r_freq').value,
         last: document.getElementById('r_last').value || U.today(),
+        next: document.getElementById('r_next').value || '',
         note: document.getElementById('r_note').value.trim()
       };
       if (id) DB.update('report', id, obj); else DB.add('report', Object.assign({ id: U.uid() }, obj));
@@ -85,15 +90,16 @@ const Report = {
       <div class="field" style="margin-top:10px"><label>实际报送日期</label><input type="date" id="r_done_date" value="${U.today()}"></div>
     `, () => {
       const doneDate = document.getElementById('r_done_date').value || U.today();
-      const nextPeriod = this.periodLabel(r.freq, doneDate);
-      DB.update('report', id, { last: doneDate });
+      // 报送后：last=报送日，next 自动推进一周期（下次到期日）
+      const newNext = r.freq === 'once' ? '' : addPeriod(doneDate, r.freq);
+      DB.update('report', id, { last: doneDate, next: newNext });
       if (r.freq === 'once') {
         // 一次性：移除（已完成）
         DB.remove('report', id);
         this.render(); App.refreshBadges();
         toast('✅ ' + r.name + ' 已完成（一次性任务已归档）');
       } else {
-        const nextNx = nextDue(Object.assign({}, r, { last: doneDate }));
+        const nextNx = newNext;
         const nextLabel = this.periodLabel(r.freq, nextNx);
         this.render(); App.refreshBadges();
         toast('✅ ' + period + ' 已报送，下期 ' + nextNx + '（' + nextLabel + '）已自动生成');
@@ -129,8 +135,9 @@ function addPeriod(d, freq) {
   return U.fmt(x);
 }
 function freqText(f) { return { daily:'每日', weekly:'每周', monthly:'每月', quarterly:'每季', half:'每半年', yearly:'每年', once:'一次性' }[f] || f; }
-/* 计算下一次到期日：从最近报送日起至少推进一个周期，直至今天之后 */
+/* 计算下一次到期日：优先用手动指定的 next；否则从最近报送日起按频率推进 */
 function nextDue(r) {
+  if (r.next) return r.next;
   const ld = r.last || U.today();
   if (r.freq === 'once') return ld;
   let cur = ld;
