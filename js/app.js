@@ -131,7 +131,7 @@ const App = {
 
       <div class="grid cols-2">
         <div class="card" style="grid-column:1/-1">
-          <div class="section-head"><h2>📅 TO DO LIST（本周）</h2><div class="spacer"></div>
+          <div class="section-head"><h2>📅 TO DO LIST</h2><div class="spacer"></div>
             <button class="btn primary sm" onclick="App.quickTodo()">+ 快速新增</button>
             <button class="btn sm" onclick="App.go('daily')">前往日历 →</button></div>
           ${(() => {
@@ -144,6 +144,15 @@ const App = {
             const wi = [];
             const md = DB.get().memo;
             const lb = ['周一','周二','周三','周四','周五','周六','周日'];
+            const monDate = U.fmt(mon);
+            // 本周之前的未完成任务（逾期未办）
+            Object.keys(md).forEach(dt => {
+              if (dt >= monDate) return;
+              (md[dt] || []).forEach(it => {
+                if (!it.done) wi.push({ ...it, _dt: dt, _lb: '⚠️ 逾期 ' + dt.slice(5).replace('-', '/') });
+              });
+            });
+            // 本周任务
             wd.forEach((dd, i) => {
               const dt = U.fmt(dd);
               (md[dt] || []).forEach(it => { wi.push({ ...it, _dt: dt, _lb: lb[i] + (dt===U.today()?' (今天)':'') }); });
@@ -153,10 +162,11 @@ const App = {
             return wi.length ? wi.map(it => {
               const t = T[it.type] || T.memo;
               const dn = it.done || false;
+              const overdue = it._lb.indexOf('逾期') === 0;
               return `<div class="ev${dn?' ev-done':''}">
                 <div class="checkbox ${dn?'on':''}" onclick="App.toggleTodo('${it._dt}','${it.id}')">${dn?'✓':''}</div>
                 <div class="ev-main">
-                  <div class="ev-title">${U.esc(it.title)} ${it.time?`<span class="pill gray" style="font-size:11px;padding:0 6px">${U.esc(it.time)}</span>`:''} <span class="pill purple" style="font-size:11px;padding:0 6px">${U.esc(it._lb)}</span></div>
+                  <div class="ev-title">${U.esc(it.title)} ${it.time?`<span class="pill gray" style="font-size:11px;padding:0 6px">${U.esc(it.time)}</span>`:''} <span class="pill ${overdue?'red':'purple'}" style="font-size:11px;padding:0 6px">${U.esc(it._lb)}</span></div>
                   ${it.note ? `<div class="ev-meta">${U.esc(it.note)}</div>` : ''}
                   <div class="ev-meta">${t[1]}${dn?' · 已完成':''}</div>
                 </div>
